@@ -77,6 +77,43 @@ def flood(location: str, claim: str, offline: bool, markdown: Path | None) -> No
         console.print(f"\n[green]Memo written to {markdown}[/green]")
 
 
+@cli.command()
+@click.argument("location")
+@click.option("--claim", required=True, help='The project claim, e.g. "reforestation project since 2021".')
+@click.option("--offline", is_flag=True, help="Use recorded fixtures instead of the live API.")
+@click.option("--attest", type=click.Path(path_type=Path), help="Write a content-hashed attestation JSON.")
+def carbon(location: str, claim: str, offline: bool, attest: Path | None) -> None:
+    """Verify a carbon-project claim against vegetation ground truth."""
+    from src.verticals.carbon import CarbonVertical
+
+    coordinate = _as_coordinate(location)
+    agent = VerificationAgent(
+        MireyeClient(offline=True if offline else None), CarbonVertical()
+    )
+    try:
+        memo = asyncio.run(
+            agent.verify(
+                address=None if coordinate else location,
+                coordinate=coordinate,
+                claim_text=claim,
+            )
+        )
+    except MireyeError as exc:
+        raise click.ClickException(f"Mireye: {exc}") from exc
+
+    render_memo(memo, console)
+
+    if attest:
+        from src.output.attestation import attest_memo, to_json
+
+        att = attest_memo(memo)
+        attest.write_text(to_json(att), encoding="utf-8")
+        console.print(
+            f"\n[green]Attestation written to {attest}[/green] "
+            f"[dim](sha256 {att.content_hash[:16]}…)[/dim]"
+        )
+
+
 @cli.command(name="dc")
 @click.argument("location")
 @click.option("--radius", default=80.0, show_default=True, help="Moratorium search radius in km.")

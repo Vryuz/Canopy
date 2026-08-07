@@ -4,11 +4,13 @@
 
 Mireye tells you what is true at a coordinate. This agent asks a harder question: *is what someone told you about this place actually true, and what does the record say that the coordinate alone does not?*
 
-Built for the Mireye challenge. Mireye supplies the site facts; FEMA's claims history and a national moratorium inventory supply the context those facts can't carry.
+Built for the Mireye challenge. Mireye supplies the site facts; FEMA's claims history, a national moratorium inventory, and satellite vegetation trends supply the context those facts can't carry.
+
+One domain-free engine, three verticals: **flood disclosure**, **data-center siting**, and **carbon-credit claims**. Each supplies which fields to pull, how to read a claim, and what counts as a contradiction — the engine turns that into a cited, tamper-evident attestation.
 
 ---
 
-## The two things it does
+## What it does
 
 ### 1. Flood claim verification
 **Who loses money today:** mortgage lenders, title companies, and insurance agents who close on a property whose flood disclosure was wrong. The correction arrives as a denied claim or an uninsurable asset.
@@ -104,6 +106,36 @@ fetched:
 Ashburn, DISPUTED, returns: *"strongest lever — grid flexibility: fund distributed capacity in
 PJM instead of waiting on the queue."* The reframe: data centers as verifiable good neighbors,
 not just consumers.
+
+### 3. Carbon-credit claim verification
+
+**Who loses money today:** credit buyers and the verification bodies (VVBs) who certify them.
+A carbon credit *is* a claim — "this land was reforested" — and the market is drowning in an
+integrity crisis (Verra invalidated 37 rice-methane projects, 4.5M credits, ~99.9% of all rice
+credits ever issued). A buyer holding junk credits eats the clawback.
+
+Give it a parcel and a project claim. It checks the claim against federal vegetation ground
+truth (land cover, tree canopy, and the **5-year NDVI trend** — the additionality signal) and
+flags the two things that sink credits: the project isn't real, or its additionality doesn't
+hold.
+
+```bash
+python -m src.cli carbon "47.8,-123.5" --claim "reforestation project, new trees planted since 2021"
+```
+
+```
+DISPUTED   confidence: high
+
+MAJOR  ndvi_change_5y
+  claimed: new vegetation added   observed: NDVI change -0.04 over 5y with 76% existing canopy
+  Canopy is already mature and the 5-year trend shows no gain. A reforestation credit here
+  is hard to defend as additional — the forest appears to predate the project.
+```
+
+That's the exact failure mode that sank the rice credits, caught from a coordinate. The same
+parcel with an *avoided-deforestation* claim returns VERIFIED — intact forest is consistent
+with a protection credit. This is Canopy's Wedge 1 (sell the attestation *to* developers, don't
+become one), dry-run on US data. Next upgrade: a Global Forest Watch / registry second source.
 
 ## Why it's an agent, not a dashboard
 

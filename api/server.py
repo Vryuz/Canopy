@@ -74,6 +74,22 @@ async def verify_flood(request: FloodRequest) -> VerificationMemo:
         raise HTTPException(status_code=502, detail=f"Mireye: {exc}") from exc
 
 
+@app.post("/verify/carbon", response_model=VerificationMemo)
+async def verify_carbon(request: FloodRequest) -> VerificationMemo:
+    from src.verticals.carbon import CarbonVertical
+
+    coordinate = _as_coordinate(request.location)
+    agent = VerificationAgent(_client(), CarbonVertical())
+    try:
+        return await agent.verify(
+            address=None if coordinate else request.location,
+            coordinate=coordinate,
+            claim_text=request.claim,
+        )
+    except MireyeError as exc:
+        raise HTTPException(status_code=502, detail=f"Mireye: {exc}") from exc
+
+
 @app.post("/screen/datacenter", response_model=SiteScreen)
 async def screen_datacenter(request: ScreenRequest) -> SiteScreen:
     client = _client()

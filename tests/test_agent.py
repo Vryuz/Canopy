@@ -391,6 +391,112 @@ def test_nearest_moratorium_drives_severity():
 # -------------------------------------------------------------------- integration
 
 
+# ----------------------------------------------------------------------- carbon
+
+
+def _carbon():
+    from src.verticals.carbon import CarbonVertical
+
+    return CarbonVertical()
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("reforestation project since 2021", "reforestation"),
+        ("new trees planted for carbon", "reforestation"),
+        ("avoided deforestation, protecting intact forest", "avoided_deforestation"),
+        ("REDD+ forest protection", "avoided_deforestation"),
+        ("regenerative agriculture soil carbon", "soil_carbon"),
+        ("avoided grassland conversion", "grassland"),
+    ],
+)
+def test_carbon_claim_parsing(text, expected):
+    assert _carbon().parse_claim(text).asserted_value == expected
+
+
+def test_reforestation_over_bare_ground_is_critical():
+    v = _carbon()
+    found = v.compare(
+        v.parse_claim("reforestation project since 2021"),
+        [_evidence("tree_canopy_pct", 0.0, unit="percent"), _evidence("lcms_class", "Barren or Impervious")],
+    )
+    assert len(found) == 1
+    assert found[0].severity is Severity.CRITICAL
+    assert "not detectable" in found[0].explanation or "not exist" in found[0].explanation
+
+
+def test_reforestation_over_mature_forest_flags_additionality():
+    """The failure mode that sank the rice credits: claiming new trees where the forest
+    already existed and isn't growing."""
+    v = _carbon()
+    found = v.compare(
+        v.parse_claim("reforestation, new trees planted"),
+        [
+            _evidence("tree_canopy_pct", 76.0, unit="percent"),
+            _evidence("lcms_class", "Trees"),
+            _evidence("ndvi_change_5y", -0.04),
+        ],
+    )
+    additionality = [d for d in found if d.field == "ndvi_change_5y"]
+    assert len(additionality) == 1
+    assert "predate" in additionality[0].explanation
+
+
+def test_avoided_deforestation_over_intact_forest_verifies():
+    v = _carbon()
+    found = v.compare(
+        v.parse_claim("avoided deforestation, protecting intact forest"),
+        [
+            _evidence("tree_canopy_pct", 76.0, unit="percent"),
+            _evidence("lcms_class", "Trees"),
+            _evidence("ndvi_change_5y", -0.03),
+        ],
+    )
+    # A mild NDVI dip above the loss threshold shouldn't manufacture a discrepancy.
+    assert found == []
+
+
+def test_avoided_deforestation_over_bare_ground_flags_inflated_baseline():
+    v = _carbon()
+    found = v.compare(
+        v.parse_claim("REDD+ forest protection"),
+        [_evidence("tree_canopy_pct", 3.0, unit="percent"), _evidence("lcms_class", "Grass/Forb/Herb")],
+    )
+    assert found[0].severity is Severity.CRITICAL
+    assert "baseline" in found[0].explanation
+
+
+def test_reforestation_on_wetland_is_flagged():
+    v = _carbon()
+    found = v.compare(
+        v.parse_claim("reforestation project"),
+        [
+            _evidence("tree_canopy_pct", 30.0, unit="percent"),
+            _evidence("lcms_class", "Trees"),
+            _evidence("ndvi_change_5y", 0.1),
+            _evidence("intersects_wetland", True),
+        ],
+    )
+    wetland = [d for d in found if d.field == "intersects_wetland"]
+    assert len(wetland) == 1
+    assert wetland[0].severity is Severity.MINOR
+
+
+@pytest.mark.asyncio
+async def test_offline_carbon_disputes_additionality_at_olympic_forest():
+    from src.agent import VerificationAgent
+
+    agent = VerificationAgent(MireyeClient(offline=True), _carbon())
+    memo = await agent.verify(
+        coordinate=Coordinate(lat=47.8, lng=-123.5),
+        claim_text="reforestation project, new trees planted since 2021",
+    )
+    assert memo.verdict.kind is VerdictKind.DISPUTED
+    assert any(d.field == "ndvi_change_5y" for d in memo.discrepancies)
+    assert all(e.source for e in memo.evidence)
+
+
 @pytest.mark.asyncio
 async def test_offline_flood_run_disputes_galveston():
     from src.agent import VerificationAgent

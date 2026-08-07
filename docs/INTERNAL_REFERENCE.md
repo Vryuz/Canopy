@@ -488,3 +488,29 @@ User picked all three proposed directions. Built B → C → A.
 - Full 1,824-site scan not run (would cost ~1,824 × 27 ≈ 49k credits — inside the Growth
   plan's 120k/mo, but run deliberately, not by reflex).
 - PKI signing of attestations (structure reserved, not implemented).
+
+---
+
+## 12. Third vertical — carbon-credit verification (2026-08-08)
+
+Data-center thread closed; brought in a Canopy-thesis wedge that fits the engine.
+
+- **New file:** `src/verticals/carbon.py` (~260 LOC) — `CarbonVertical` implementing the
+  `Vertical` protocol.
+- **What it checks:** a stated carbon-project claim (reforestation / avoided-deforestation /
+  soil-carbon / grassland) against Mireye vegetation ground truth — `lcms_class`,
+  `tree_canopy_pct`, `ndvi_current`, **`ndvi_change_5y`**, `cdl_class`, `intersects_wetland`.
+- **The crux is additionality.** `ndvi_change_5y` carries it: a reforestation claim over
+  mature canopy with no 5-year gain → "the forest appears to predate the project" (the exact
+  rice-credit failure). Bare ground → "project may not exist." Avoided-deforestation over
+  intact forest → VERIFIED.
+- **Wired everywhere:** CLI `carbon` command (+ `--attest`), API `POST /verify/carbon`, web
+  third tab. Carbon returns a `VerificationMemo` (same shape as flood), so all three reuse the
+  existing renderer; the web form handler was refactored into a shared `wireMemoForm()`.
+- **Fixture:** `tests/fixtures/mireye/v1_fetch_47.80_-123.50.json` (Olympic old-growth: 76%
+  canopy, "Trees", −0.038 NDVI/5y).
+- **Canopy tie:** this is Wedge 1 ("sell attestations TO carbon developers, don't compete"),
+  dry-run on US data. Fusion upgrade logged, not built: a Global Forest Watch / registry
+  second source.
+- **Tests:** 50 total (was 38) — claim parsing, the three verdict paths, wetland flag, offline
+  integration.

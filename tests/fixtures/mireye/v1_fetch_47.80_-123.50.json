@@ -1,0 +1,97 @@
+{
+ "lat": 47.8,
+ "lng": -123.5,
+ "fetched_at": "2026-08-07T19:46:40.389835+00:00",
+ "fields": {
+  "lcms_class": {
+   "value": "Trees",
+   "unit": null,
+   "source": "USFS_LCMS",
+   "source_url": "https://data.fs.usda.gov/geodata/rastergateway/LCMS/",
+   "confidence": "medium",
+   "fetched_at": "2026-08-07T19:43:49.385802+00:00",
+   "dataset_vintage": "USFS LCMS Land_Cover CONUS v2025-11 (2025 annual), ~120 m block-mode CONUS COG",
+   "ttl_seconds": 31536000,
+   "notes": "LCMS Land_Cover class sampled from the bootstrapped ~120 m block-mode CONUS COG",
+   "status": "ok"
+  },
+  "land_use_class": {
+   "value": "Forest",
+   "unit": null,
+   "source": "USFS_LCMS",
+   "source_url": "https://data.fs.usda.gov/geodata/rastergateway/LCMS/",
+   "confidence": "medium",
+   "fetched_at": "2026-08-07T19:43:49.387785+00:00",
+   "dataset_vintage": "USFS LCMS Land_Use CONUS v2025-11 (2025 annual), ~120 m block-mode CONUS COG",
+   "ttl_seconds": 31536000,
+   "notes": "LCMS Land_Use class sampled from the bootstrapped ~120 m block-mode CONUS COG",
+   "status": "ok"
+  },
+  "cdl_class": {
+   "value": "Evergreen Forest",
+   "unit": null,
+   "source": "USDA_NASS_CDL",
+   "source_url": "https://nassgeodata.gmu.edu/CropScape/",
+   "confidence": "medium",
+   "fetched_at": "2026-08-07T19:43:49.378862+00:00",
+   "dataset_vintage": "USDA CDL 2025 (~120 m block-mode CONUS COG)",
+   "ttl_seconds": 31536000,
+   "notes": "CDL class sampled from the bootstrapped ~120 m block-mode CONUS COG",
+   "status": "ok"
+  },
+  "tree_canopy_pct": {
+   "value": 76.0,
+   "unit": "percent",
+   "source": "USFS_NLCD_TCC",
+   "source_url": "https://data.fs.usda.gov/geodata/rastergateway/treecanopycover/",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T19:43:49.392557+00:00",
+   "dataset_vintage": "USFS/MRLC NLCD Tree Canopy Cover 2025 (v2025-6), CONUS COG (~120 m block-mean canopy %)",
+   "ttl_seconds": 31536000,
+   "notes": "tree canopy cover (%) sampled from the bootstrapped USFS/NLCD CONUS COG",
+   "status": "ok"
+  },
+  "ndvi_current": {
+   "value": 0.8520866632461548,
+   "unit": null,
+   "source": "COPERNICUS_S2_SR_HARMONIZED",
+   "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T19:46:40.388511+00:00",
+   "dataset_vintage": "S2 SR 60d window @ 2026-08-07",
+   "ttl_seconds": 604800,
+   "notes": null,
+   "status": "ok"
+  },
+  "ndvi_change_5y": {
+   "value": -0.03753471374511719,
+   "unit": null,
+   "source": "COPERNICUS_S2_SR_HARMONIZED",
+   "source_url": "https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED",
+   "confidence": "medium",
+   "fetched_at": "2026-08-07T19:46:40.388667+00:00",
+   "dataset_vintage": null,
+   "ttl_seconds": 604800,
+   "notes": null,
+   "status": "ok"
+  },
+  "intersects_wetland": {
+   "value": false,
+   "unit": null,
+   "source": "USFWS_NWI",
+   "source_url": "https://www.fws.gov/program/national-wetlands-inventory",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T19:43:51.787603+00:00",
+   "dataset_vintage": null,
+   "ttl_seconds": 31536000,
+   "notes": null,
+   "status": "ok"
+  }
+ },
+ "partial_failures": [],
+ "resolved_location": {
+  "lat": 47.8,
+  "lng": -123.5,
+  "source": "coordinate"
+ }
+}

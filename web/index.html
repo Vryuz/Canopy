@@ -15,6 +15,7 @@
 
 <nav class="tabs">
   <button class="tab active" data-panel="flood">Flood claim</button>
+  <button class="tab" data-panel="carbon">Carbon project</button>
   <button class="tab" data-panel="dc">Data center site</button>
 </nav>
 
@@ -35,6 +36,24 @@
       <button class="ex" data-loc="1600 Sherman St, Denver, CO" data-claim="not in a flood zone">Denver (expect verified)</button>
     </div>
     <div id="flood-out" class="out"></div>
+  </section>
+
+  <section id="carbon" class="panel">
+    <form id="carbon-form">
+      <label>Address or coordinate
+        <input name="location" value="47.8, -123.5" required>
+      </label>
+      <label>Carbon-project claim
+        <input name="claim" value="reforestation project, new trees planted since 2021" required>
+      </label>
+      <button type="submit">Verify</button>
+    </form>
+    <div class="examples">
+      Try: <button class="ex-carbon" data-loc="33.4484, -112.074" data-claim="reforestation project established since 2021">Phoenix — no trees (dispute)</button>
+      <button class="ex-carbon" data-loc="47.8, -123.5" data-claim="reforestation project, new trees planted since 2021">Old-growth — additionality</button>
+      <button class="ex-carbon" data-loc="47.8, -123.5" data-claim="avoided deforestation, protecting intact forest">Old-growth — REDD+ (verified)</button>
+    </div>
+    <div id="carbon-out" class="out"></div>
   </section>
 
   <section id="dc" class="panel">
@@ -74,6 +93,10 @@ document.querySelectorAll(".ex").forEach(b => b.onclick = () => {
 });
 document.querySelectorAll(".ex-dc").forEach(b => b.onclick = () => {
   $("#dc-form [name=location]").value = b.dataset.loc;
+});
+document.querySelectorAll(".ex-carbon").forEach(b => b.onclick = () => {
+  $("#carbon-form [name=location]").value = b.dataset.loc;
+  $("#carbon-form [name=claim]").value = b.dataset.claim;
 });
 
 function verdictBadge(v) {
@@ -134,31 +157,40 @@ async function post(url, body) {
   return res.json();
 }
 
-$("#flood-form").onsubmit = async (e) => {
-  e.preventDefault();
-  const out = $("#flood-out");
-  out.innerHTML = '<div class="loading">Resolving location, fetching federal sources…</div>';
-  const f = new FormData(e.target);
-  try {
-    const m = await post("/verify/flood", { location: f.get("location"), claim: f.get("claim") });
-    const disc = m.discrepancies?.length ? `<h3>Discrepancies</h3>` + m.discrepancies.map(d => `
-      <div class="disc sev-${esc(d.severity)}">
-        <div class="disc-head"><span class="sev">${esc(d.severity)}</span> <span class="mono">${esc(d.field)}</span></div>
-        <div class="disc-vals">claimed <b>${esc(d.claimed)}</b> · observed <b>${esc(d.observed)}</b></div>
-        <div>${esc(d.explanation)}</div>
-      </div>`).join("") : "";
-    out.innerHTML = `<div class="card v-${esc(m.verdict.kind)}">
-      <div class="verdict">${verdictBadge(m.verdict)}</div>
-      <p class="reason">${esc(m.verdict.reasoning)}</p>
-      <p class="loc"><b>Claim:</b> "${esc(m.claim.text)}"<br>
-      <b>Location:</b> ${esc(m.location.resolved_address || "")} <span class="dim">(${m.location.lat.toFixed(5)}, ${m.location.lng.toFixed(5)})</span></p>
-      ${disc}
-      ${signalList(m.signals, "Corroborating signals")}
-      ${evidenceTable(m.evidence)}
-      ${gapList(m.data_gaps)}
-    </div>`;
-  } catch (err) { out.innerHTML = `<div class="error">${esc(err.message)}</div>`; }
-};
+function renderMemo(m) {
+  const disc = m.discrepancies?.length ? `<h3>Discrepancies</h3>` + m.discrepancies.map(d => `
+    <div class="disc sev-${esc(d.severity)}">
+      <div class="disc-head"><span class="sev">${esc(d.severity)}</span> <span class="mono">${esc(d.field)}</span></div>
+      <div class="disc-vals">claimed <b>${esc(d.claimed)}</b> · observed <b>${esc(d.observed)}</b></div>
+      <div>${esc(d.explanation)}</div>
+    </div>`).join("") : "";
+  return `<div class="card v-${esc(m.verdict.kind)}">
+    <div class="verdict">${verdictBadge(m.verdict)}</div>
+    <p class="reason">${esc(m.verdict.reasoning)}</p>
+    <p class="loc"><b>Claim:</b> "${esc(m.claim.text)}"<br>
+    <b>Location:</b> ${esc(m.location.resolved_address || "")} <span class="dim">(${m.location.lat.toFixed(5)}, ${m.location.lng.toFixed(5)})</span></p>
+    ${disc}
+    ${signalList(m.signals, "Corroborating signals")}
+    ${evidenceTable(m.evidence)}
+    ${gapList(m.data_gaps)}
+  </div>`;
+}
+
+function wireMemoForm(formId, outId, endpoint, loadingText) {
+  $(formId).onsubmit = async (e) => {
+    e.preventDefault();
+    const out = $(outId);
+    out.innerHTML = `<div class="loading">${loadingText}</div>`;
+    const f = new FormData(e.target);
+    try {
+      const m = await post(endpoint, { location: f.get("location"), claim: f.get("claim") });
+      out.innerHTML = renderMemo(m);
+    } catch (err) { out.innerHTML = `<div class="error">${esc(err.message)}</div>`; }
+  };
+}
+
+wireMemoForm("#flood-form", "#flood-out", "/verify/flood", "Resolving location, fetching federal sources…");
+wireMemoForm("#carbon-form", "#carbon-out", "/verify/carbon", "Checking the claim against vegetation ground truth…");
 
 $("#dc-form").onsubmit = async (e) => {
   e.preventDefault();
