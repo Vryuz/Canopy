@@ -65,11 +65,15 @@ Phoenix inverts it: zero moratoria and a clean `VERIFIED`, but the lowest extern
 
 ## What it combines
 
-| Source | What it contributes | Auth |
-|---|---|---|
-| **Mireye Earth** | Per-coordinate physical facts with per-field provenance | Bearer token |
-| **OpenFEMA** | County disaster declarations + NFIP paid claims | None |
-| **Moratorium Nation** | 505 geocoded data-center moratoria (CC-BY-4.0) | None |
+Every vertical fuses Mireye with at least one independent second source — that combination
+*is* the product.
+
+| Source | What it contributes | Used by | Auth |
+|---|---|---|---|
+| **Mireye Earth** | Per-coordinate physical facts with per-field provenance | all | Bearer token |
+| **OpenFEMA** | County disaster declarations + NFIP paid claims | flood | None |
+| **Moratorium Nation** | 505 geocoded data-center moratoria (CC-BY-4.0) | data center | None |
+| **OSM / Overpass** | 1,824 US data-center locations; protected-area status (parks/reserves/wilderness) | data center, carbon | None |
 
 ---
 
@@ -132,10 +136,15 @@ MAJOR  ndvi_change_5y
   is hard to defend as additional — the forest appears to predate the project.
 ```
 
-That's the exact failure mode that sank the rice credits, caught from a coordinate. The same
-parcel with an *avoided-deforestation* claim returns VERIFIED — intact forest is consistent
-with a protection credit. This is Canopy's Wedge 1 (sell the attestation *to* developers, don't
-become one), dry-run on US data. Next upgrade: a Global Forest Watch / registry second source.
+That's the exact failure mode that sank the rice credits, caught from a coordinate.
+
+**The fusion:** Mireye's vegetation truth is combined with a second, independent source —
+**OSM protected-area status** — to test the hardest additionality question of all. An
+avoided-deforestation claim over the same Olympic forest returns DISPUTED, because the parcel
+sits *inside Olympic National Park and a designated Wilderness*: the land was legally protected
+regardless, so you cannot be paid to prevent a loss that law already prevents. Neither source
+alone catches this; the combination does. This is Canopy's Wedge 1 (sell the attestation *to*
+developers, don't become one), dry-run on US data.
 
 ## Why it's an agent, not a dashboard
 

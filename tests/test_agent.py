@@ -394,10 +394,12 @@ def test_nearest_moratorium_drives_severity():
 # ----------------------------------------------------------------------- carbon
 
 
-def _carbon():
+def _carbon(protected=None):
+    """Carbon vertical with the protected-area second source stubbed out by default, so
+    unit tests never touch the network. Pass a fn to exercise the fusion path."""
     from src.verticals.carbon import CarbonVertical
 
-    return CarbonVertical()
+    return CarbonVertical(protected_areas_fn=protected or (lambda lat, lng: []))
 
 
 @pytest.mark.parametrize(
@@ -495,6 +497,53 @@ async def test_offline_carbon_disputes_additionality_at_olympic_forest():
     assert memo.verdict.kind is VerdictKind.DISPUTED
     assert any(d.field == "ndvi_change_5y" for d in memo.discrepancies)
     assert all(e.source for e in memo.evidence)
+
+
+@pytest.mark.asyncio
+async def test_carbon_fuses_protected_area_source_for_additionality():
+    """The fusion: Mireye vegetation (offline fixture) + OSM protected-area status combine
+    to reject an avoided-deforestation credit on land already inside a national park."""
+    from src.agent import VerificationAgent
+    from src.clients.osm import ProtectedArea
+
+    def in_olympic_park(lat, lng):
+        return [
+            ProtectedArea(
+                name="Olympic National Park",
+                designation="national_park",
+                protect_class="2",
+                iucn_level="National Park (IUCN II)",
+            )
+        ]
+
+    agent = VerificationAgent(MireyeClient(offline=True), _carbon(in_olympic_park))
+    memo = await agent.verify(
+        coordinate=Coordinate(lat=47.8, lng=-123.5),
+        claim_text="avoided deforestation, protecting intact forest",
+    )
+    assert memo.verdict.kind is VerdictKind.DISPUTED
+    protected = [d for d in memo.discrepancies if d.field == "protected_areas"]
+    assert len(protected) == 1
+    assert protected[0].severity is Severity.CRITICAL
+    # The verdict draws on two independent sources.
+    assert "OSM_OVERPASS" in memo.sources()
+    assert any(e.source != "OSM_OVERPASS" for e in memo.evidence)
+
+
+@pytest.mark.asyncio
+async def test_carbon_degrades_gracefully_when_protected_lookup_fails():
+    from src.agent import VerificationAgent
+
+    def boom(lat, lng):
+        raise RuntimeError("overpass down")
+
+    agent = VerificationAgent(MireyeClient(offline=True), _carbon(boom))
+    memo = await agent.verify(
+        coordinate=Coordinate(lat=47.8, lng=-123.5),
+        claim_text="avoided deforestation, protecting intact forest",
+    )
+    # The failure is declared, not swallowed, and doesn't crash the verification.
+    assert any(g.field == "protected_areas" and g.retryable for g in memo.data_gaps)
 
 
 @pytest.mark.asyncio

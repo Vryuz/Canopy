@@ -514,3 +514,30 @@ Data-center thread closed; brought in a Canopy-thesis wedge that fits the engine
   second source.
 - **Tests:** 50 total (was 38) — claim parsing, the three verdict paths, wetland flag, offline
   integration.
+
+---
+
+## 13. Carbon fusion — the real second source (2026-08-08)
+
+The carbon vertical was Mireye-only, which failed Mireye's #1 judging line ("what did you
+combine us with?"). Fixed by adding an independent second source.
+
+- **Second source: OSM protected-area status** via Overpass `is_in` (keyless). USGS PAD-US
+  is the authoritative US source but its ArcGIS endpoints were 502-ing; OSM is stable and
+  well-populated for the parks/reserves/wilderness that drive additionality. Cited as OSM.
+- **New:** `clients/osm.py` → `protected_areas_at(lat, lng)` + `ProtectedArea` model
+  (name, designation, IUCN `protect_class`, `is_strict`).
+- **The additionality test:** an avoided-deforestation credit on land *already inside a
+  strictly protected area* (national park / IUCN I–IV) fails additionality — the forest was
+  protected by law regardless. Live: Olympic point → "already inside Olympic National Park…
+  you cannot be paid to prevent a loss that law already prevents." Verdict draws on **6
+  sources** (5 Mireye federal + OSM).
+- **Architecture change:** `Vertical.gather_external` now takes the `claim` and returns
+  `(signals, gaps, discrepancies)` — an independent source contradicting the claim is a
+  first-class discrepancy, not just context. Agent merges external discrepancies with
+  `compare()`'s. Flood updated to the new signature (returns no external discrepancies).
+- **Testable + graceful:** `CarbonVertical(protected_areas_fn=…)` is injectable, so tests
+  never hit the network; a live lookup failure is declared as a retryable data gap, not
+  swallowed. Tests: 52 total (was 50), incl. the fusion path and the graceful-degradation path.
+- **GFW note:** Global Forest Watch tree-cover-loss (actual deforestation pixels) needs a free
+  API key (403 keyless); logged as the optional keyed upgrade, not built.

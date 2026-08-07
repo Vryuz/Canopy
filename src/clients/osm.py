@@ -43,6 +43,93 @@ class DataCenter(BaseModel):
     operator: str | None = None
 
 
+class ProtectedArea(BaseModel):
+    name: str
+    designation: str          # protected_area / national_park / nature_reserve
+    protect_class: str | None  # IUCN-style class: "1a","1b","2",... when tagged
+    iucn_level: str | None = None
+
+    @property
+    def is_strict(self) -> bool:
+        """Strict protection (IUCN I–IV / national park) means the land was going to be
+        conserved regardless — the crux of a non-additional avoided-deforestation credit."""
+        if self.designation in {"national_park", "nature_reserve"}:
+            return True
+        cls = (self.protect_class or "").lower()
+        return cls in {"1a", "1b", "2", "3", "4"}
+
+
+# IUCN protected-area class labels, for a human-readable citation.
+_IUCN_LABELS = {
+    "1a": "Strict Nature Reserve (IUCN Ia)",
+    "1b": "Wilderness Area (IUCN Ib)",
+    "2": "National Park (IUCN II)",
+    "3": "Natural Monument (IUCN III)",
+    "4": "Habitat/Species Management Area (IUCN IV)",
+    "5": "Protected Landscape (IUCN V)",
+    "6": "Managed Resource Protected Area (IUCN VI)",
+}
+
+
+def protected_areas_at(lat: float, lng: float) -> list[ProtectedArea]:
+    """Protected areas containing a point, from OpenStreetMap via Overpass `is_in`.
+
+    The authoritative US source is USGS PAD-US, but its ArcGIS endpoints are unreliable;
+    OSM is keyless, stable, and well-populated for the parks/reserves/wilderness that
+    actually drive avoided-deforestation additionality. Cited as OSM, not claimed as federal.
+    """
+    query = f"""[out:json][timeout:60];
+is_in({lat},{lng})->.a;
+(
+  area.a[boundary=protected_area];
+  area.a[boundary=national_park];
+  area.a[leisure=nature_reserve];
+);
+out tags;"""
+
+    last_error: Exception | None = None
+    for endpoint in ENDPOINTS:
+        try:
+            response = httpx.post(
+                endpoint,
+                data={"data": query},
+                headers={"User-Agent": USER_AGENT},
+                timeout=75.0,
+            )
+            response.raise_for_status()
+            return _parse_protected(response.json().get("elements", []))
+        except Exception as exc:
+            last_error = exc
+            continue
+    raise RuntimeError(f"all Overpass endpoints failed; last error: {last_error}")
+
+
+def _parse_protected(elements: list[dict]) -> list[ProtectedArea]:
+    out: list[ProtectedArea] = []
+    seen: set[str] = set()
+    for el in elements:
+        tags = el.get("tags") or {}
+        name = tags.get("name")
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        designation = (
+            "national_park" if tags.get("boundary") == "national_park"
+            else "nature_reserve" if tags.get("leisure") == "nature_reserve"
+            else "protected_area"
+        )
+        cls = tags.get("protect_class")
+        out.append(
+            ProtectedArea(
+                name=name,
+                designation=designation,
+                protect_class=cls,
+                iucn_level=_IUCN_LABELS.get(str(cls).lower()) if cls else None,
+            )
+        )
+    return out
+
+
 def _query(bbox: tuple[float, float, float, float]) -> str:
     s, w, n, e = bbox
     b = f"{s},{w},{n},{e}"

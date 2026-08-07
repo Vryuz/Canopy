@@ -97,8 +97,8 @@ class FloodVertical:
     # ---------------------------------------------------------------- external
 
     async def gather_external(
-        self, location: Coordinate, evidence: list[Evidence]
-    ) -> tuple[list[Signal], list[DataGap]]:
+        self, claim: Claim, location: Coordinate, evidence: list[Evidence]
+    ) -> tuple[list[Signal], list[DataGap], list[Discrepancy]]:
         county_fips = _county_fips(evidence)
         if not county_fips:
             return [], [
@@ -107,7 +107,7 @@ class FloodVertical:
                     reason="county FIPS not resolved, so FEMA history could not be queried",
                     source="OPENFEMA",
                 )
-            ]
+            ], []
 
         signals: list[Signal] = []
         gaps: list[DataGap] = []
@@ -171,7 +171,7 @@ class FloodVertical:
                 )
             )
 
-        return signals, gaps
+        return signals, gaps, []
 
     # ----------------------------------------------------------------- compare
 

@@ -39,8 +39,11 @@ class Vertical(Protocol):
     def parse_claim(self, text: str) -> Claim: ...
 
     async def gather_external(
-        self, location: Coordinate, evidence: list[Evidence]
-    ) -> tuple[list[Signal], list[DataGap]]: ...
+        self, claim: Claim, location: Coordinate, evidence: list[Evidence]
+    ) -> tuple[list[Signal], list[DataGap], list[Discrepancy]]:
+        """Pull second sources. May return discrepancies of its own — an independent
+        source contradicting the claim is a contradiction, not merely context."""
+        ...
 
     def compare(
         self, claim: Claim, evidence: list[Evidence]
@@ -124,10 +127,14 @@ class VerificationAgent:
             fields=getattr(self.vertical, "fields", None),
         )
 
-        signals, external_gaps = await self.vertical.gather_external(coordinate, evidence)
+        signals, external_gaps, external_discrepancies = await self.vertical.gather_external(
+            claim, coordinate, evidence
+        )
         gaps = [*gaps, *external_gaps]
 
-        discrepancies = self.vertical.compare(claim, evidence)
+        # Discrepancies come from two places: comparing the claim to Mireye's fields, and
+        # a second source directly contradicting it (e.g. "already legally protected").
+        discrepancies = [*self.vertical.compare(claim, evidence), *external_discrepancies]
 
         requested = len(evidence) + len(gaps)
         coverage = len(evidence) / requested if requested else 0.0

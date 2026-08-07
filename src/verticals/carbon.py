@@ -19,8 +19,9 @@ Global Forest Watch / registry second source is the fusion upgrade (see module n
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Callable
 
-from src.clients.mireye import MireyeClient
+from src.clients.osm import ProtectedArea, protected_areas_at
 from src.models import (
     Claim,
     Coordinate,
@@ -30,6 +31,13 @@ from src.models import (
     Severity,
     Signal,
 )
+
+OSM_SOURCE = "OSM_OVERPASS"
+OSM_SOURCE_URL = "https://www.openstreetmap.org"
+
+# Second source: a function (lat, lng) -> protected areas. Injectable so tests don't hit
+# the network and the live default can degrade gracefully.
+ProtectedAreasFn = Callable[[float, float], list[ProtectedArea]]
 
 # Explicit field list: the vegetation signals span wildfire_underwrite + land_cover presets,
 # so no single preset carries them all.
@@ -72,10 +80,15 @@ _GRASS_LCMS = ("grass", "herb", "shrub")
 
 
 class CarbonVertical:
-    """Reads a carbon-project claim and checks it against vegetation ground truth."""
+    """Reads a carbon-project claim and checks it against two independent sources:
+    Mireye vegetation ground truth, and OSM protected-area status (the additionality
+    crux — land already legally protected would have been conserved regardless)."""
 
     preset = None
     fields = CARBON_FIELDS
+
+    def __init__(self, protected_areas_fn: ProtectedAreasFn | None = None):
+        self._protected_areas = protected_areas_fn or protected_areas_at
 
     # ------------------------------------------------------------------- claim
 
@@ -90,36 +103,93 @@ class CarbonVertical:
     # ---------------------------------------------------------------- external
 
     async def gather_external(
-        self, location: Coordinate, evidence: list[Evidence]
-    ) -> tuple[list[Signal], list[DataGap]]:
-        """No second data source yet — the additionality trajectory is surfaced as a
-        cited signal built from the NDVI evidence, which is the crux of every dispute."""
-        trend = _get(evidence, "ndvi_change_5y")
-        if trend is None:
-            return [], []
-        try:
-            delta = float(trend.value)
-        except (TypeError, ValueError):
-            return [], []
+        self, claim: Claim, location: Coordinate, evidence: list[Evidence]
+    ) -> tuple[list[Signal], list[DataGap], list[Discrepancy]]:
+        """Second source: OSM protected-area status. The core additionality test for an
+        avoided-deforestation credit is whether the land was already legally protected —
+        if so, the "avoided" deforestation would not have happened, and the credit is not
+        additional. Also surfaces the NDVI trajectory as a cited signal."""
+        signals: list[Signal] = []
+        gaps: list[DataGap] = []
+        discrepancies: list[Discrepancy] = []
+        now = datetime.now(timezone.utc)
 
-        direction = "greening" if delta >= NDVI_GAIN else "declining" if delta <= NDVI_LOSS else "flat"
-        weight = Severity.MAJOR if delta <= NDVI_LOSS else Severity.MINOR
-        signal = Signal(
-            label="5-year vegetation trajectory (additionality signal)",
-            detail=(
-                f"NDVI change over 5 years is {delta:+.2f} ({direction}). "
-                + {
-                    "greening": "consistent with vegetation being added.",
-                    "declining": "a red flag for loss or reversal on a credited parcel.",
-                    "flat": "no measurable change — additionality is hard to defend.",
-                }[direction]
-            ),
-            source=trend.source,
-            source_url=trend.source_url,
-            fetched_at=trend.fetched_at,
-            weight=weight,
+        # -- NDVI trajectory signal (from Mireye evidence) --
+        trend = _get(evidence, "ndvi_change_5y")
+        if trend is not None:
+            try:
+                delta = float(trend.value)
+                direction = "greening" if delta >= NDVI_GAIN else "declining" if delta <= NDVI_LOSS else "flat"
+                signals.append(
+                    Signal(
+                        label="5-year vegetation trajectory (additionality signal)",
+                        detail=(
+                            f"NDVI change over 5 years is {delta:+.2f} ({direction}). "
+                            + {
+                                "greening": "consistent with vegetation being added.",
+                                "declining": "a red flag for loss or reversal on a credited parcel.",
+                                "flat": "no measurable change — additionality is hard to defend.",
+                            }[direction]
+                        ),
+                        source=trend.source,
+                        source_url=trend.source_url,
+                        fetched_at=trend.fetched_at,
+                        weight=Severity.MAJOR if delta <= NDVI_LOSS else Severity.MINOR,
+                    )
+                )
+            except (TypeError, ValueError):
+                pass
+
+        # -- Protected-area fusion (second source) --
+        try:
+            areas = self._protected_areas(location.lat, location.lng)
+        except Exception as exc:
+            gaps.append(
+                DataGap(
+                    field="protected_areas",
+                    reason=f"protected-area lookup unavailable: {exc}",
+                    source=OSM_SOURCE,
+                    retryable=True,
+                )
+            )
+            return signals, gaps, discrepancies
+
+        if not areas:
+            return signals, gaps, discrepancies
+
+        names = "; ".join(
+            f"{a.name} ({a.iucn_level or a.designation.replace('_', ' ')})" for a in areas
         )
-        return [signal], []
+        signals.append(
+            Signal(
+                label="Protected-area status (independent source)",
+                detail=f"Parcel lies within: {names}.",
+                source=OSM_SOURCE,
+                source_url=OSM_SOURCE_URL,
+                fetched_at=now,
+                weight=Severity.MINOR,
+            )
+        )
+
+        strict = [a for a in areas if a.is_strict]
+        if claim.asserted_value == AVOIDED_DEFORESTATION and strict:
+            top = strict[0]
+            discrepancies.append(
+                Discrepancy(
+                    field="protected_areas",
+                    claimed="avoided deforestation is additional",
+                    observed=f"already within {top.name} ({top.iucn_level or top.designation})",
+                    severity=Severity.CRITICAL,
+                    explanation=(
+                        f"The parcel is already inside {top.name}, a strictly protected area. "
+                        "Land under existing legal protection would have been conserved without "
+                        "the project, so an avoided-deforestation credit here fails additionality — "
+                        "you cannot be paid to prevent a loss that law already prevents."
+                    ),
+                )
+            )
+
+        return signals, gaps, discrepancies
 
     # ----------------------------------------------------------------- compare
 
