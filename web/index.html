@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verification Agent</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>Verification Agent</h1>
+  <p class="sub">Claims about physical locations, checked against cited federal ground truth.
+  Mireye for the site facts, FEMA and Moratorium Nation for what the site facts don't say.</p>
+</header>
+
+<nav class="tabs">
+  <button class="tab active" data-panel="flood">Flood claim</button>
+  <button class="tab" data-panel="dc">Data center site</button>
+</nav>
+
+<main>
+  <section id="flood" class="panel active">
+    <form id="flood-form">
+      <label>Address or coordinate
+        <input name="location" value="1719 Broadway Ave J, Galveston, TX" required>
+      </label>
+      <label>Claim to verify
+        <input name="claim" value="seller states the property is not in a flood zone" required>
+      </label>
+      <button type="submit">Verify</button>
+    </form>
+    <div class="examples">
+      Try: <button class="ex" data-loc="1719 Broadway Ave J, Galveston, TX" data-claim="seller states the property is not in a flood zone">Galveston coastal</button>
+      <button class="ex" data-loc="350 5th Ave, New York, NY" data-claim="Zone X">Empire State, Zone X</button>
+      <button class="ex" data-loc="1600 Sherman St, Denver, CO" data-claim="not in a flood zone">Denver (expect verified)</button>
+    </div>
+    <div id="flood-out" class="out"></div>
+  </section>
+
+  <section id="dc" class="panel">
+    <form id="dc-form">
+      <label>Address or coordinate
+        <input name="location" value="39.0438, -77.4874" required>
+      </label>
+      <label>Moratorium search radius (km)
+        <input name="radius_km" type="number" value="80" min="1" max="500">
+      </label>
+      <button type="submit">Screen site</button>
+    </form>
+    <div class="examples">
+      Try: <button class="ex-dc" data-loc="39.0438, -77.4874">Ashburn, VA</button>
+      <button class="ex-dc" data-loc="39.9612, -82.9988">Columbus, OH</button>
+      <button class="ex-dc" data-loc="33.4484, -112.074">Phoenix, AZ</button>
+      <button class="ex-dc" data-loc="41.2619, -95.8608">Council Bluffs, IA</button>
+    </div>
+    <div id="dc-out" class="out"></div>
+  </section>
+</main>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === tab));
+    document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === tab.dataset.panel));
+  };
+});
+
+document.querySelectorAll(".ex").forEach(b => b.onclick = () => {
+  $("#flood-form [name=location]").value = b.dataset.loc;
+  $("#flood-form [name=claim]").value = b.dataset.claim;
+});
+document.querySelectorAll(".ex-dc").forEach(b => b.onclick = () => {
+  $("#dc-form [name=location]").value = b.dataset.loc;
+});
+
+function verdictBadge(v) {
+  return `<span class="badge ${v.kind}">${v.kind}</span>
+    <span class="conf">confidence: ${esc(v.confidence)}</span>`;
+}
+
+function evidenceTable(evidence) {
+  if (!evidence?.length) return "";
+  const rows = evidence.map(e => `<tr>
+    <td class="mono">${esc(e.field)}</td>
+    <td><b>${esc(e.value)}${e.unit ? " " + esc(e.unit) : ""}</b></td>
+    <td>${e.source_url ? `<a href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source)}</a>` : esc(e.source)}</td>
+    <td class="dim">${esc((e.fetched_at || "").slice(0, 10))}</td>
+    <td class="dim">${esc(e.confidence)}</td>
+  </tr>`).join("");
+  return `<h3>Evidence <span class="dim">— every value carries its source and fetch date</span></h3>
+    <table><thead><tr><th>Field</th><th>Value</th><th>Source</th><th>Fetched</th><th>Conf</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function signalList(signals, title) {
+  if (!signals?.length) return "";
+  return `<h3>${title}</h3><ul class="signals">` + signals.map(s => `<li class="w-${esc(s.weight)}">
+    <b>${esc(s.label)}</b> — ${esc(s.detail)}
+    <div class="dim">${esc(s.source)} · fetched ${esc((s.fetched_at || "").slice(0, 10))}</div>
+  </li>`).join("") + "</ul>";
+}
+
+function pathToYes(p2y) {
+  if (!p2y) return "";
+  const levers = [...p2y.levers].sort((a, b) => b.strength - a.strength).map(l => {
+    const cls = l.strength >= 0.7 ? "good" : l.strength >= 0.4 ? "warn" : "bad";
+    return `<li>
+      <div class="lever-head"><b>${esc(l.name)}</b><span class="val ${cls}">${l.strength.toFixed(2)}</span></div>
+      <div>${esc(l.headline)}</div>
+      <div class="dim">${esc(l.detail)}</div>
+    </li>`;
+  }).join("");
+  return `<h3>Path to yes <span class="dim">— what would unblock this site</span></h3>
+    <p class="p2y-summary">${esc(p2y.summary)}</p>
+    <ul class="levers">${levers}</ul>`;
+}
+
+function gapList(gaps) {
+  if (!gaps?.length) return "";
+  return `<h3>Declared data gaps <span class="dim">— asked for, not returned</span></h3>
+    <ul class="gaps">` + gaps.map(g =>
+      `<li><span class="mono">${esc(g.field)}</span>: ${esc(g.reason)}${g.retryable ? " <span class='dim'>(retryable)</span>" : ""}</li>`
+    ).join("") + "</ul>";
+}
+
+async function post(url, body) {
+  const res = await fetch(url, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+  return res.json();
+}
+
+$("#flood-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const out = $("#flood-out");
+  out.innerHTML = '<div class="loading">Resolving location, fetching federal sources…</div>';
+  const f = new FormData(e.target);
+  try {
+    const m = await post("/verify/flood", { location: f.get("location"), claim: f.get("claim") });
+    const disc = m.discrepancies?.length ? `<h3>Discrepancies</h3>` + m.discrepancies.map(d => `
+      <div class="disc sev-${esc(d.severity)}">
+        <div class="disc-head"><span class="sev">${esc(d.severity)}</span> <span class="mono">${esc(d.field)}</span></div>
+        <div class="disc-vals">claimed <b>${esc(d.claimed)}</b> · observed <b>${esc(d.observed)}</b></div>
+        <div>${esc(d.explanation)}</div>
+      </div>`).join("") : "";
+    out.innerHTML = `<div class="card v-${esc(m.verdict.kind)}">
+      <div class="verdict">${verdictBadge(m.verdict)}</div>
+      <p class="reason">${esc(m.verdict.reasoning)}</p>
+      <p class="loc"><b>Claim:</b> "${esc(m.claim.text)}"<br>
+      <b>Location:</b> ${esc(m.location.resolved_address || "")} <span class="dim">(${m.location.lat.toFixed(5)}, ${m.location.lng.toFixed(5)})</span></p>
+      ${disc}
+      ${signalList(m.signals, "Corroborating signals")}
+      ${evidenceTable(m.evidence)}
+      ${gapList(m.data_gaps)}
+    </div>`;
+  } catch (err) { out.innerHTML = `<div class="error">${esc(err.message)}</div>`; }
+};
+
+$("#dc-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const out = $("#dc-out");
+  out.innerHTML = '<div class="loading">Screening site, checking nearby moratoria…</div>';
+  const f = new FormData(e.target);
+  try {
+    const s = await post("/screen/datacenter", {
+      location: f.get("location"), radius_km: Number(f.get("radius_km"))
+    });
+    const scores = s.scores.map(sc => {
+      const cls = sc.score >= 0.7 ? "good" : sc.score >= 0.4 ? "warn" : "bad";
+      return `<div class="score">
+        <div class="score-head"><b>${esc(sc.dimension)}</b><span class="val ${cls}">${sc.score.toFixed(2)}</span></div>
+        <div class="bar"><i class="${cls}" style="width:${Math.round(sc.score * 100)}%"></i></div>
+        <div class="dim">${esc(sc.rationale)}</div>
+      </div>`;
+    }).join("");
+    out.innerHTML = `<div class="card v-${esc(s.verdict.kind)}">
+      <div class="verdict">${verdictBadge(s.verdict)}</div>
+      <p class="reason">${esc(s.verdict.reasoning)}</p>
+      <p class="loc"><b>Site:</b> ${esc(s.location.resolved_address || "")} <span class="dim">(${s.location.lat.toFixed(5)}, ${s.location.lng.toFixed(5)})</span></p>
+      <h3>Scored dimensions</h3><div class="scores">${scores}</div>
+      ${pathToYes(s.path_to_yes)}
+      ${signalList(s.signals, "Regulatory &amp; opposition signals")}
+      ${evidenceTable(s.evidence)}
+      ${gapList(s.data_gaps)}
+    </div>`;
+  } catch (err) { out.innerHTML = `<div class="error">${esc(err.message)}</div>`; }
+};
+</script>
+</body>
+</html>

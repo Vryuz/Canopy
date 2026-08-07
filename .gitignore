@@ -1,0 +1,33 @@
+# --- secrets (never commit) ---
+.env
+.env.*
+!.env.example
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# --- generated data caches (regenerable; some carry their own license) ---
+data/moratoria.csv
+data/state_legislation.csv
+data/us_data_centers.json
+
+# --- scan output (regenerable from `python -m src.cli scan`) ---
+findings/
+
+# --- local tooling (hardcoded machine paths / editor state) ---
+.claude/
+.vscode/
+.idea/
+
+# --- local-only strategy docs (candid; keep local, never push) ---
+docs/COMPANY_THESIS.md
+docs/DECISION_LOG.md

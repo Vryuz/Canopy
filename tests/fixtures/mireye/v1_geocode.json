@@ -1,0 +1,10 @@
+{
+ "lat": 29.301336,
+ "lng": -94.785743,
+ "accuracy": 0.94,
+ "accuracy_type": "nearest_rooftop_match",
+ "match_type": null,
+ "normalized_address": "1721 Broadway St J, Galveston, TX 77550",
+ "provider": "geocodio",
+ "source": "Statewide (CC 0 Texas Natural Resources Information System)"
+}

@@ -1,0 +1,142 @@
+{
+ "lat": 29.301336,
+ "lng": -94.785743,
+ "fetched_at": "2026-08-07T18:57:51.877212+00:00",
+ "fields": {
+  "tract_geoid": {
+   "value": "48167724400",
+   "unit": null,
+   "source": "CENSUS_GEOCODING",
+   "source_url": "https://geocoding.geo.census.gov/geocoder/geographies/coordinates",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T12:51:25.082140+00:00",
+   "dataset_vintage": null,
+   "ttl_seconds": 31536000,
+   "notes": null,
+   "status": "ok"
+  },
+  "fema_flood_zone": {
+   "value": "AE",
+   "unit": null,
+   "source": "FEMA_NFHL",
+   "source_url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T12:51:24.319035+00:00",
+   "dataset_vintage": "48167C_STUDY1",
+   "ttl_seconds": 2592000,
+   "notes": "FEMA NFHL flood zone AE.",
+   "status": "ok"
+  },
+  "fema_base_flood_elevation": {
+   "value": 11.0,
+   "unit": "feet",
+   "source": "FEMA_NFHL",
+   "source_url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T12:51:24.319130+00:00",
+   "dataset_vintage": "48167C_STUDY1",
+   "ttl_seconds": 2592000,
+   "notes": "FEMA Base Flood Elevation (NAVD88, ft).",
+   "status": "ok"
+  },
+  "within_floodplain_polygon": {
+   "value": true,
+   "unit": null,
+   "source": "FEMA_NFHL",
+   "source_url": "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T12:51:24.319184+00:00",
+   "dataset_vintage": "48167C_STUDY1",
+   "ttl_seconds": 2592000,
+   "notes": "FEMA NFHL Flood Hazard Zones indicate Special Flood Hazard Area: Zone AE; SFHA_TF=T; FLD_AR_ID=48167C_834; SOURCE_CIT=48167C_STUDY1.",
+   "status": "ok"
+  },
+  "elevation": {
+   "value": 2.5029449462890625,
+   "unit": "meters",
+   "source": "USGS_3DEP_COG",
+   "source_url": "https://www.usgs.gov/3d-elevation-program",
+   "confidence": "medium",
+   "fetched_at": "2026-08-07T12:51:24.835803+00:00",
+   "dataset_vintage": "3DEP 1/3 arc-second seamless DEM",
+   "ttl_seconds": 31536000,
+   "notes": null,
+   "status": "ok"
+  },
+  "coast_distance_m": {
+   "value": 850.1432992636495,
+   "unit": "meters",
+   "source": "NOAA_CUSP",
+   "source_url": "https://shoreline.noaa.gov/data/datasheets/cusp.html",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T12:51:24.309620+00:00",
+   "dataset_vintage": null,
+   "ttl_seconds": 31536000,
+   "notes": null,
+   "status": "ok"
+  },
+  "intersects_wetland": {
+   "value": false,
+   "unit": null,
+   "source": "USFWS_NWI",
+   "source_url": "https://www.fws.gov/program/national-wetlands-inventory",
+   "confidence": "high",
+   "fetched_at": "2026-08-07T12:51:27.534306+00:00",
+   "dataset_vintage": null,
+   "ttl_seconds": 31536000,
+   "notes": null,
+   "status": "ok"
+  },
+  "nearest_waterbody_name": {
+   "value": null,
+   "unit": null,
+   "source": "USGS_NHDPLUS_HR",
+   "source_url": "https://hydro.nationalmap.gov/arcgis/rest/services/NHDPlus_HR/MapServer/9/query?f=json&outFields=%2A&returnGeometry=true&geometry=-94.785743%2C29.301336&geometryType=esriGeometryPoint&inSR=4326&spatialRel=esriSpatialRelIntersects&distance=5000&units=esriSRUnit_Meter&outSR=4326&orderByFields=OBJECTID&resultRecordCount=200&resultOffset=0",
+   "confidence": "medium",
+   "fetched_at": "2026-08-07T12:59:43.009185+00:00",
+   "dataset_vintage": null,
+   "ttl_seconds": 31536000,
+   "notes": "Nearest NHDPlus waterbody has no GNIS/name attribute.",
+   "status": "absent"
+  },
+  "surface_water_permanence_pct": {
+   "value": 0.0,
+   "unit": "percent",
+   "source": "JRC_GSW",
+   "source_url": "https://global-surface-water.appspot.com/",
+   "confidence": "medium",
+   "fetched_at": "2026-08-07T12:51:24.319445+00:00",
+   "dataset_vintage": null,
+   "ttl_seconds": 2592000,
+   "notes": null,
+   "status": "ok"
+  },
+  "political_county": {
+   "value": null,
+   "unit": null,
+   "source": "OVERTURE_DIVISIONS",
+   "source_url": "https://overturemaps.org/documentation/divisions/",
+   "confidence": "unknown",
+   "fetched_at": null,
+   "dataset_vintage": null,
+   "ttl_seconds": 31536000,
+   "notes": "TimeoutError: ",
+   "status": "failed",
+   "error": "TimeoutError: ",
+   "retryable": true
+  }
+ },
+ "partial_failures": [
+  {
+   "field": "political_county",
+   "source": "OVERTURE_DIVISIONS",
+   "error": "TimeoutError: ",
+   "retryable": true
+  }
+ ],
+ "resolved_location": {
+  "lat": 29.301336,
+  "lng": -94.785743,
+  "source": "coordinate"
+ }
+}
