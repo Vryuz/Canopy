@@ -4,81 +4,162 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verification Agent</title>
-<link rel="stylesheet" href="/static/style.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
-<header>
-  <h1>Verification Agent</h1>
-  <p class="sub">Claims about physical locations, checked against cited federal ground truth.
-  Mireye for the site facts, FEMA and Moratorium Nation for what the site facts don't say.</p>
+
+<header class="topbar">
+  <div class="brand"><b>Verification Agent</b></div>
+  <div class="label">Cited ground truth · <a href="https://www.mireye.com" target="_blank" rel="noopener">Mireye</a> + independent sources</div>
 </header>
 
-<nav class="tabs">
-  <button class="tab active" data-panel="flood">Flood claim</button>
-  <button class="tab" data-panel="carbon">Carbon project</button>
-  <button class="tab" data-panel="dc">Data center site</button>
-</nav>
+<div class="wrap">
 
-<main>
-  <section id="flood" class="panel active">
-    <form id="flood-form">
-      <label>Address or coordinate
-        <input name="location" value="1719 Broadway Ave J, Galveston, TX" required>
-      </label>
-      <label>Claim to verify
-        <input name="claim" value="seller states the property is not in a flood zone" required>
-      </label>
-      <button type="submit">Verify</button>
-    </form>
-    <div class="examples">
-      Try: <button class="ex" data-loc="1719 Broadway Ave J, Galveston, TX" data-claim="seller states the property is not in a flood zone">Galveston coastal</button>
-      <button class="ex" data-loc="350 5th Ave, New York, NY" data-claim="Zone X">Empire State, Zone X</button>
-      <button class="ex" data-loc="1600 Sherman St, Denver, CO" data-claim="not in a flood zone">Denver (expect verified)</button>
+  <section class="hero">
+    <div class="kicker enter"><span class="dot"></span><span class="label">Physical-world claim verification</span></div>
+    <h1 class="display enter enter-d1">Someone told you something about a place. <em>Is it true?</em></h1>
+    <p class="lede enter enter-d2">Mireye tells you what's true at a coordinate. This agent asks the harder question — whether what a seller, a developer, or a carbon registry <b>claims</b> about that place holds up — and reports where the sources <b>disagree</b>. Every verdict is a cited, tamper-evident attestation.</p>
+    <div class="sources-strip enter enter-d3">
+      <span class="label">Fused sources</span>
+      <span class="src">MIREYE·EARTH</span>
+      <span class="src">OPENFEMA</span>
+      <span class="src">MORATORIUM·NATION</span>
+      <span class="src">OSM·OVERPASS</span>
+      <span class="src">USGS · FEMA · NOAA · USFWS · COPERNICUS</span>
     </div>
-    <div id="flood-out" class="out"></div>
   </section>
 
-  <section id="carbon" class="panel">
-    <form id="carbon-form">
-      <label>Address or coordinate
-        <input name="location" value="47.8, -123.5" required>
-      </label>
-      <label>Carbon-project claim
-        <input name="claim" value="reforestation project, new trees planted since 2021" required>
-      </label>
-      <button type="submit">Verify</button>
-    </form>
-    <div class="examples">
-      Try: <button class="ex-carbon" data-loc="33.4484, -112.074" data-claim="reforestation project established since 2021">Phoenix — no trees (dispute)</button>
-      <button class="ex-carbon" data-loc="47.8, -123.5" data-claim="reforestation project, new trees planted since 2021">Old-growth — additionality</button>
-      <button class="ex-carbon" data-loc="47.8, -123.5" data-claim="avoided deforestation, protecting intact forest">Old-growth — REDD+ (verified)</button>
-    </div>
-    <div id="carbon-out" class="out"></div>
-  </section>
+  <nav class="tabs reveal">
+    <button class="tab active" data-panel="flood"><span class="idx">01</span>Flood claim</button>
+    <button class="tab" data-panel="carbon"><span class="idx">02</span>Carbon project</button>
+    <button class="tab" data-panel="dc"><span class="idx">03</span>Data center site</button>
+  </nav>
 
-  <section id="dc" class="panel">
-    <form id="dc-form">
-      <label>Address or coordinate
-        <input name="location" value="39.0438, -77.4874" required>
-      </label>
-      <label>Moratorium search radius (km)
-        <input name="radius_km" type="number" value="80" min="1" max="500">
-      </label>
-      <button type="submit">Screen site</button>
-    </form>
-    <div class="examples">
-      Try: <button class="ex-dc" data-loc="39.0438, -77.4874">Ashburn, VA</button>
-      <button class="ex-dc" data-loc="39.9612, -82.9988">Columbus, OH</button>
-      <button class="ex-dc" data-loc="33.4484, -112.074">Phoenix, AZ</button>
-      <button class="ex-dc" data-loc="41.2619, -95.8608">Council Bluffs, IA</button>
-    </div>
-    <div id="dc-out" class="out"></div>
-  </section>
-</main>
+  <main>
+    <section id="flood" class="panel active">
+      <div class="panel-intro reveal">
+        <span class="label">Mireye + OpenFEMA</span>
+        <h2>Does the flood disclosure survive?</h2>
+        <p><span class="buyer">Buyer: mortgage lenders, title companies, insurers.</span> Checks a stated flood claim against FEMA's mapped zone and base flood elevation, cross-referenced with the county's disaster and NFIP claims history.</p>
+      </div>
+      <form id="flood-form">
+        <label><span>Address or coordinate</span>
+          <input name="location" value="1719 Broadway Ave J, Galveston, TX" required>
+        </label>
+        <label><span>Claim to verify</span>
+          <input name="claim" value="seller states the property is not in a flood zone" required>
+        </label>
+        <button type="submit">Verify claim</button>
+      </form>
+      <div class="examples">
+        <span>Try</span>
+        <button class="ex" data-loc="1719 Broadway Ave J, Galveston, TX" data-claim="seller states the property is not in a flood zone">Galveston coastal</button>
+        <button class="ex" data-loc="350 5th Ave, New York, NY" data-claim="Zone X">Empire State · Zone X</button>
+        <button class="ex" data-loc="1600 Sherman St, Denver, CO" data-claim="not in a flood zone">Denver · expect verified</button>
+      </div>
+      <div id="flood-out" class="out"></div>
+    </section>
 
+    <section id="carbon" class="panel">
+      <div class="panel-intro reveal">
+        <span class="label">Mireye + OSM protected areas</span>
+        <h2>Is the carbon credit defensible?</h2>
+        <p><span class="buyer">Buyer: credit buyers and verification bodies.</span> A credit is a claim. Checks it against vegetation ground truth and protected-area status — catching non-existent projects and the additionality failures that got 4.5M rice credits invalidated.</p>
+      </div>
+      <form id="carbon-form">
+        <label><span>Address or coordinate</span>
+          <input name="location" value="47.8, -123.5" required>
+        </label>
+        <label><span>Carbon-project claim</span>
+          <input name="claim" value="reforestation project, new trees planted since 2021" required>
+        </label>
+        <button type="submit">Verify claim</button>
+      </form>
+      <div class="examples">
+        <span>Try</span>
+        <button class="ex-carbon" data-loc="33.4484, -112.074" data-claim="reforestation project established since 2021">Phoenix · no trees</button>
+        <button class="ex-carbon" data-loc="47.8, -123.5" data-claim="reforestation project, new trees planted since 2021">Old-growth · additionality</button>
+        <button class="ex-carbon" data-loc="47.8, -123.5" data-claim="avoided deforestation, protecting intact forest">In a national park · REDD+</button>
+      </div>
+      <div id="carbon-out" class="out"></div>
+    </section>
+
+    <section id="dc" class="panel">
+      <div class="panel-intro reveal">
+        <span class="label">Mireye + Moratorium Nation</span>
+        <h2>Will this data center get permitted?</h2>
+        <p><span class="buyer">Buyer: developer site-selection teams.</span> Scores physical viability, then checks nearby active moratoria — and for a contested site, computes the community-benefit package that would move it toward a yes.</p>
+      </div>
+      <form id="dc-form">
+        <label><span>Address or coordinate</span>
+          <input name="location" value="39.0438, -77.4874" required>
+        </label>
+        <label><span>Moratorium search radius (km)</span>
+          <input name="radius_km" type="number" value="80" min="1" max="500">
+        </label>
+        <button type="submit">Screen site</button>
+      </form>
+      <div class="examples">
+        <span>Try</span>
+        <button class="ex-dc" data-loc="39.0438, -77.4874">Ashburn, VA</button>
+        <button class="ex-dc" data-loc="39.9612, -82.9988">Columbus, OH</button>
+        <button class="ex-dc" data-loc="33.4484, -112.074">Phoenix, AZ</button>
+        <button class="ex-dc" data-loc="41.2619, -95.8608">Council Bluffs, IA</button>
+      </div>
+      <div id="dc-out" class="out"></div>
+    </section>
+  </main>
+
+  <footer class="foot reveal">
+    <p><span class="label">One engine, three domains</span></p>
+    <p>Flood, carbon, and data-center verification ride one domain-free engine: a vertical supplies which fields to pull, how to read a claim, and what counts as a contradiction — the loop turns that into a cited attestation. Proximity is not deliverability; a screen tells you where to look, not what you'll find on the ground.</p>
+  </footer>
+
+</div>
+
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
 <script>
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* --- Lenis smooth scroll (ported from the Blitz build), reduced-motion aware --- */
+(function () {
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced || typeof Lenis === "undefined") return;
+  const lenis = new Lenis({
+    duration: 1.05,
+    easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+    wheelMultiplier: 0.9,
+    touchMultiplier: 1.6,
+  });
+  const raf = (time) => { lenis.raf(time); requestAnimationFrame(raf); };
+  requestAnimationFrame(raf);
+})();
+
+/* --- reveal on scroll: content is visible by default; script opts into the animation --- */
+(function () {
+  const nodes = Array.from(document.querySelectorAll(".reveal"));
+  if (!nodes.length) return;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced || typeof IntersectionObserver === "undefined") return;
+  document.documentElement.classList.add("js-reveal");
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (!e.isIntersecting) continue;
+      e.target.setAttribute("data-shown", "true");
+      io.unobserve(e.target);
+    }
+  }, { rootMargin: "0px 0px -10% 0px", threshold: 0.08 });
+  nodes.forEach((n) => io.observe(n));
+  // Deadman switch: if the observer never fires (some webviews), show everything.
+  setTimeout(() => {
+    if (!nodes.some((n) => n.getAttribute("data-shown") === "true"))
+      nodes.forEach((n) => n.setAttribute("data-shown", "true"));
+  }, 1200);
+})();
 
 document.querySelectorAll(".tab").forEach(tab => {
   tab.onclick = () => {
@@ -91,17 +172,17 @@ document.querySelectorAll(".ex").forEach(b => b.onclick = () => {
   $("#flood-form [name=location]").value = b.dataset.loc;
   $("#flood-form [name=claim]").value = b.dataset.claim;
 });
-document.querySelectorAll(".ex-dc").forEach(b => b.onclick = () => {
-  $("#dc-form [name=location]").value = b.dataset.loc;
-});
 document.querySelectorAll(".ex-carbon").forEach(b => b.onclick = () => {
   $("#carbon-form [name=location]").value = b.dataset.loc;
   $("#carbon-form [name=claim]").value = b.dataset.claim;
 });
+document.querySelectorAll(".ex-dc").forEach(b => b.onclick = () => {
+  $("#dc-form [name=location]").value = b.dataset.loc;
+});
 
 function verdictBadge(v) {
-  return `<span class="badge ${v.kind}">${v.kind}</span>
-    <span class="conf">confidence: ${esc(v.confidence)}</span>`;
+  return `<span class="badge ${esc(v.kind)}">${esc(v.kind)}</span>
+    <span class="conf">confidence · ${esc(v.confidence)}</span>`;
 }
 
 function evidenceTable(evidence) {
@@ -109,9 +190,9 @@ function evidenceTable(evidence) {
   const rows = evidence.map(e => `<tr>
     <td class="mono">${esc(e.field)}</td>
     <td><b>${esc(e.value)}${e.unit ? " " + esc(e.unit) : ""}</b></td>
-    <td>${e.source_url ? `<a href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source)}</a>` : esc(e.source)}</td>
-    <td class="dim">${esc((e.fetched_at || "").slice(0, 10))}</td>
-    <td class="dim">${esc(e.confidence)}</td>
+    <td>${e.source_url ? `<a href="${esc(e.source_url)}" target="_blank" rel="noopener">${esc(e.source)}</a>` : `<span class="mono">${esc(e.source)}</span>`}</td>
+    <td class="dim mono">${esc((e.fetched_at || "").slice(0, 10))}</td>
+    <td class="dim mono">${esc(e.confidence)}</td>
   </tr>`).join("");
   return `<h3>Evidence <span class="dim">— every value carries its source and fetch date</span></h3>
     <table><thead><tr><th>Field</th><th>Value</th><th>Source</th><th>Fetched</th><th>Conf</th></tr></thead>
@@ -145,7 +226,7 @@ function gapList(gaps) {
   if (!gaps?.length) return "";
   return `<h3>Declared data gaps <span class="dim">— asked for, not returned</span></h3>
     <ul class="gaps">` + gaps.map(g =>
-      `<li><span class="mono">${esc(g.field)}</span>: ${esc(g.reason)}${g.retryable ? " <span class='dim'>(retryable)</span>" : ""}</li>`
+      `<li><span class="mono">${esc(g.field)}</span> — ${esc(g.reason)}${g.retryable ? " <span class='dim'>(retryable)</span>" : ""}</li>`
     ).join("") + "</ul>";
 }
 
@@ -167,8 +248,8 @@ function renderMemo(m) {
   return `<div class="card v-${esc(m.verdict.kind)}">
     <div class="verdict">${verdictBadge(m.verdict)}</div>
     <p class="reason">${esc(m.verdict.reasoning)}</p>
-    <p class="loc"><b>Claim:</b> "${esc(m.claim.text)}"<br>
-    <b>Location:</b> ${esc(m.location.resolved_address || "")} <span class="dim">(${m.location.lat.toFixed(5)}, ${m.location.lng.toFixed(5)})</span></p>
+    <p class="loc"><b>Claim</b> &nbsp;"${esc(m.claim.text)}"<br>
+    <b>Location</b> &nbsp;${esc(m.location.resolved_address || "")} <span class="dim mono">(${m.location.lat.toFixed(5)}, ${m.location.lng.toFixed(5)})</span></p>
     ${disc}
     ${signalList(m.signals, "Corroborating signals")}
     ${evidenceTable(m.evidence)}
@@ -190,7 +271,7 @@ function wireMemoForm(formId, outId, endpoint, loadingText) {
 }
 
 wireMemoForm("#flood-form", "#flood-out", "/verify/flood", "Resolving location, fetching federal sources…");
-wireMemoForm("#carbon-form", "#carbon-out", "/verify/carbon", "Checking the claim against vegetation ground truth…");
+wireMemoForm("#carbon-form", "#carbon-out", "/verify/carbon", "Checking the claim against vegetation ground truth + protected-area status…");
 
 $("#dc-form").onsubmit = async (e) => {
   e.preventDefault();
@@ -212,7 +293,7 @@ $("#dc-form").onsubmit = async (e) => {
     out.innerHTML = `<div class="card v-${esc(s.verdict.kind)}">
       <div class="verdict">${verdictBadge(s.verdict)}</div>
       <p class="reason">${esc(s.verdict.reasoning)}</p>
-      <p class="loc"><b>Site:</b> ${esc(s.location.resolved_address || "")} <span class="dim">(${s.location.lat.toFixed(5)}, ${s.location.lng.toFixed(5)})</span></p>
+      <p class="loc"><b>Site</b> &nbsp;${esc(s.location.resolved_address || "")} <span class="dim mono">(${s.location.lat.toFixed(5)}, ${s.location.lng.toFixed(5)})</span></p>
       <h3>Scored dimensions</h3><div class="scores">${scores}</div>
       ${pathToYes(s.path_to_yes)}
       ${signalList(s.signals, "Regulatory &amp; opposition signals")}
