@@ -6,33 +6,34 @@
 <title>Verification Agent</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=2">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=4">
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand"><b>Verification Agent</b></div>
+  <div class="brand"><span class="mark"></span><b>Verification Agent</b></div>
   <div class="label">Cited ground truth · <a href="https://www.mireye.com" target="_blank" rel="noopener">Mireye</a> + independent sources</div>
 </header>
 
 <div class="wrap">
 
   <section class="hero">
-    <div class="kicker enter"><span class="dot"></span><span class="label">Physical-world claim verification</span></div>
-    <h1 class="display enter enter-d1">Someone told you something about a place. <em>Is it true?</em></h1>
-    <p class="lede enter enter-d2">Mireye tells you what's true at a coordinate. This agent asks the harder question — whether what a seller, a developer, or a carbon registry <b>claims</b> about that place holds up — and reports where the sources <b>disagree</b>. Every verdict is a cited, tamper-evident attestation.</p>
-    <div class="sources-strip enter enter-d3">
-      <span class="label">Fused sources</span>
-      <span class="src">MIREYE·EARTH</span>
-      <span class="src">OPENFEMA</span>
-      <span class="src">MORATORIUM·NATION</span>
-      <span class="src">OSM·OVERPASS</span>
-      <span class="src">USGS · FEMA · NOAA · USFWS · COPERNICUS</span>
+    <div class="hero-copy">
+      <div class="kicker enter"><span class="dot"></span><span class="label">Physical-world claim verification</span></div>
+      <h1 class="display enter enter-d1">Claims about places, checked against the record</h1>
+      <p class="lede enter enter-d2">Mireye tells you what is true at a coordinate. This agent asks the harder question — whether what a seller, a developer, or a carbon registry <b>claims</b> about that place holds up — and reports where the sources <b>disagree</b>. Every verdict is a cited, tamper-evident attestation.</p>
+      <a class="cta enter enter-d3" href="#work">Run a verification →</a>
+    </div>
+    <div class="specimens enter enter-d3" aria-hidden="true">
+      <div class="spec"><span>Mireye Earth</span></div>
+      <div class="spec"><span>OpenFEMA</span></div>
+      <div class="spec"><span>Moratorium Nation</span></div>
+      <div class="spec"><span>OSM Overpass</span></div>
     </div>
   </section>
 
-  <nav class="tabs reveal">
+  <nav class="tabs reveal" id="work">
     <button class="tab active" data-panel="flood"><span class="idx">01</span>Flood claim</button>
     <button class="tab" data-panel="carbon"><span class="idx">02</span>Carbon project</button>
     <button class="tab" data-panel="dc"><span class="idx">03</span>Data center site</button>
@@ -114,8 +115,23 @@
   </main>
 
   <footer class="foot reveal">
-    <p><span class="label">One engine, three domains</span></p>
-    <p>Flood, carbon, and data-center verification ride one domain-free engine: a vertical supplies which fields to pull, how to read a claim, and what counts as a contradiction — the loop turns that into a cited attestation. Proximity is not deliverability; a screen tells you where to look, not what you'll find on the ground.</p>
+    <div class="foot-cols">
+      <div>
+        <span class="label">01 / One engine</span>
+        <h4>Three domains, one primitive</h4>
+        <p>A vertical supplies which fields to pull, how to read a claim, and what counts as a contradiction. The loop turns that into a cited attestation.</p>
+      </div>
+      <div>
+        <span class="label">02 / Fusion</span>
+        <h4>Mireye is one input</h4>
+        <p>Every verdict combines Mireye with an independent source — FEMA claims history, a moratorium inventory, or protected-area status. Neither alone catches what the pair does.</p>
+      </div>
+      <div>
+        <span class="label">03 / Honest bounds</span>
+        <h4>A screen, not a survey</h4>
+        <p>Proximity is not deliverability. Confidence is capped by evidence coverage, and every field we asked for and did not get is declared, never dropped.</p>
+      </div>
+    </div>
   </footer>
 
 </div>
@@ -137,6 +153,17 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<":
   });
   const raf = (time) => { lenis.raf(time); requestAnimationFrame(raf); };
   requestAnimationFrame(raf);
+  // Lenis owns scroll position, so anchor links and any programmatic scroll must go
+  // through it — otherwise window.scrollTo silently does nothing.
+  window.__lenis = lenis;
+  document.querySelectorAll('a[href^="#"]').forEach((a) => {
+    a.addEventListener("click", (e) => {
+      const target = document.querySelector(a.getAttribute("href"));
+      if (!target) return;
+      e.preventDefault();
+      lenis.scrollTo(target, { offset: -70 });
+    });
+  });
 })();
 
 /* --- reveal on scroll: content is visible by default; script opts into the animation --- */
