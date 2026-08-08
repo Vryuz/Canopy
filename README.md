@@ -1,4 +1,4 @@
-# Verification Agent
+# Canopy
 
 **An agent that checks claims about physical locations against cited federal ground truth — and reports where the sources disagree.**
 

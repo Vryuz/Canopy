@@ -112,22 +112,23 @@ body::after {
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: center; gap: 0.55rem; }
-.brand .mark { width: 15px; height: 15px; border-radius: 50%; background: var(--accent); flex: none; }
-.brand b { font-family: var(--grotesk); font-weight: 700; font-size: 1.02rem; letter-spacing: -0.02em; color: var(--ink); }
+.brand { display: flex; align-items: center; gap: 0.5rem; }
+.brand svg { width: 17px; height: 18px; color: var(--ink); flex: none; display: block; }
+.brand b { font-family: var(--grotesk); font-weight: 700; font-size: 1.08rem; letter-spacing: -0.03em; color: var(--ink); }
 .topbar .label { color: var(--ink-3); }
 .topbar a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
 .topbar a:hover { border-bottom-color: var(--ink-3); }
 
-/* --- hero: left-weighted, drafting grid behind, halftone specimens right --- */
+/* --- hero: full-bleed halftone landscape, copy sitting in the quiet paper above --- */
 .hero {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
-  gap: clamp(1.5rem, 4vw, 3rem);
-  align-items: center;
-  padding: clamp(3rem, 7vw, 5.5rem) 0 clamp(2.5rem, 5vw, 4rem);
+  /* No overflow:hidden — the absolutely-positioned layers below are already inset,
+     and clipping here silently ate the CTA at short viewport heights. */
+  padding: clamp(3rem, 7vw, 5rem) 0 clamp(2.5rem, 6vw, 4.5rem);
   border-bottom: 1px solid var(--line);
+  min-height: min(78vh, 640px);
+  display: flex;
+  flex-direction: column;
 }
 /* The drafting grid. Large cells, barely-there lines — structure you feel, not read. */
 .hero::before {
@@ -138,10 +139,18 @@ body::after {
     linear-gradient(to right, var(--grid) 1px, transparent 1px),
     linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
   background-size: 132px 132px;
-  mask-image: radial-gradient(ellipse 90% 80% at 60% 45%, #000 40%, transparent 100%);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000 30%, transparent 100%);
 }
-.hero > * { position: relative; z-index: 1; }
+/* The generated plate: a forested horizon dissolving upward into the paper. */
+.hero-bg {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 68%;
+  z-index: 0; pointer-events: none;
+  background: url("/static/img/hero-horizon.png") no-repeat bottom center / cover;
+}
+.hero-inner { position: relative; z-index: 2; flex: 1; }
 
+.hero-copy { max-width: 34rem; }
 .hero-copy h1 { font-size: var(--text-display); margin: 0 0 1.2rem; }
 .hero-copy .kicker { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.2rem; }
 .hero-copy .kicker .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
@@ -157,45 +166,35 @@ body::after {
 .lede b { color: var(--ink); font-weight: 600; }
 
 .cta {
-  display: inline-block; padding: 0.6rem 1.15rem; border-radius: 5px;
+  /* inline-flex, not inline-block: the latter sits on the text baseline, which let it
+     hang below its parent's box. */
+  display: inline-flex; align-items: center;
+  padding: 0.6rem 1.15rem; border-radius: 5px;
   background: var(--ink); color: var(--paper); border: 0;
   font-family: var(--grotesk); font-weight: 600; font-size: 0.87rem; letter-spacing: -0.01em;
   cursor: pointer; text-decoration: none; transition: background var(--dur) var(--ease);
 }
 .cta:hover { background: #000; }
 
-/* Halftone specimens — scattered, slightly rotated, dot-textured. Stands in for the
-   reference's dithered imagery, but each tile names a real fused source. */
-.specimens { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.9rem; }
-.spec {
-  position: relative; aspect-ratio: 4 / 3; overflow: hidden;
-  background: var(--surface); border: 1px solid var(--line);
-  display: flex; align-items: flex-end; padding: 0.55rem;
-  transition: transform var(--dur) var(--ease);
+/* Halftone plates — what Canopy reads, as generated dot-screen textures. */
+.plates {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line); border-bottom: 0;
+  background: var(--surface);
 }
-.spec::before {
-  content: ""; position: absolute; inset: 0;
-  /* The halftone: a dot lattice, faded by a mask so it reads as a printed plate. */
-  background-image: radial-gradient(circle at center, var(--ink) 1.15px, transparent 1.3px);
-  background-size: 6px 6px;
-  opacity: 0.85;
+.plate { position: relative; border-right: 1px solid var(--line); overflow: hidden; }
+.plate:last-child { border-right: 0; }
+.plate img {
+  display: block; width: 100%; height: 104px; object-fit: cover;
+  opacity: 0.9; transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
-.spec:nth-child(1) { transform: rotate(-2.2deg); }
-.spec:nth-child(2) { transform: rotate(1.6deg); }
-.spec:nth-child(3) { transform: rotate(1.1deg); }
-.spec:nth-child(4) { transform: rotate(-1.4deg); }
-.spec:hover { transform: rotate(0deg) translateY(-2px); }
-.spec:nth-child(1)::before { mask-image: radial-gradient(ellipse 70% 65% at 35% 40%, #000 25%, transparent 78%); }
-.spec:nth-child(2)::before { mask-image: radial-gradient(ellipse 60% 75% at 62% 50%, #000 20%, transparent 72%); }
-.spec:nth-child(3)::before { mask-image: radial-gradient(ellipse 75% 60% at 45% 60%, #000 22%, transparent 75%); }
-.spec:nth-child(4)::before { mask-image: radial-gradient(ellipse 65% 70% at 55% 42%, #000 18%, transparent 70%); }
-.spec span {
-  position: relative; z-index: 2;
-  font-family: var(--mono); font-size: 0.58rem;
-  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2);
-  /* Opaque plate so the dot lattice can't read as a strikethrough behind the label. */
-  background: var(--surface); box-shadow: 0 0 0 3px var(--surface);
-  padding: 0.1rem 0.15rem;
+.plate:hover img { opacity: 1; transform: scale(1.04); }
+.plate span {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 0.35rem 0.55rem;
+  font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--ink-2);
+  background: linear-gradient(to top, var(--surface) 62%, transparent);
 }
 
 /* --- tabs --- */
@@ -371,14 +370,16 @@ a:hover { border-bottom-color: var(--ink); }
   html { scroll-behavior: auto; }
   .js-reveal .reveal { opacity: 1; transform: none; transition: none; }
   .enter { animation: none; opacity: 1; transform: none; }
-  .spec { transition: none; }
+  .plate img { transition: none; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 @media (max-width: 780px) {
-  .hero { grid-template-columns: 1fr; }
-  .specimens { grid-template-columns: repeat(4, 1fr); }
-  .spec { aspect-ratio: 1; }
+  .hero { min-height: auto; padding-bottom: 12rem; }
+  .hero-bg { height: 52%; }
+  .plates { grid-template-columns: repeat(2, 1fr); }
+  .plate:nth-child(2) { border-right: 0; }
+  .plate img { height: 88px; }
   .foot-cols { grid-template-columns: 1fr; }
   .foot-cols > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .tabs { overflow-x: auto; }

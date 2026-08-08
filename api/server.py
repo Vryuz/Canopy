@@ -24,7 +24,7 @@ WEB_DIR = Path(__file__).resolve().parents[1] / "web"
 COORD_PATTERN = re.compile(r"^\s*(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)\s*$")
 
 app = FastAPI(
-    title="Verification Agent",
+    title="Canopy",
     description="Checks claims about US locations against cited federal ground truth.",
     version="0.1.0",
 )
@@ -104,7 +104,12 @@ async def screen_datacenter(request: ScreenRequest) -> SiteScreen:
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(WEB_DIR / "index.html")
+    # The demo page is edited constantly; without this the browser serves a stale
+    # copy and you end up debugging markup that is no longer on disk.
+    return FileResponse(
+        WEB_DIR / "index.html",
+        headers={"Cache-Control": "no-store, must-revalidate"},
+    )
 
 
 if WEB_DIR.exists():

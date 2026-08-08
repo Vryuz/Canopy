@@ -3,34 +3,42 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Verification Agent</title>
+<title>Canopy — verified ground truth for claims about places</title>
+<link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=4">
+<link rel="stylesheet" href="/static/style.css?v=11">
 </head>
 <body>
 
 <header class="topbar">
-  <div class="brand"><span class="mark"></span><b>Verification Agent</b></div>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.6 7.9 7.2l3.8 4.9 3.5-3.6 6.3 7.2"/><path d="M2.5 20.6 8.7 15l3.7 3.4 4.2-3.7 4.9 5.2"/></svg>
+    <b>Canopy</b>
+  </div>
   <div class="label">Cited ground truth · <a href="https://www.mireye.com" target="_blank" rel="noopener">Mireye</a> + independent sources</div>
 </header>
 
-<div class="wrap">
-
-  <section class="hero">
+<section class="hero">
+  <div class="hero-bg" aria-hidden="true"></div>
+  <div class="wrap hero-inner">
     <div class="hero-copy">
       <div class="kicker enter"><span class="dot"></span><span class="label">Physical-world claim verification</span></div>
       <h1 class="display enter enter-d1">Claims about places, checked against the record</h1>
-      <p class="lede enter enter-d2">Mireye tells you what is true at a coordinate. This agent asks the harder question — whether what a seller, a developer, or a carbon registry <b>claims</b> about that place holds up — and reports where the sources <b>disagree</b>. Every verdict is a cited, tamper-evident attestation.</p>
+      <p class="lede enter enter-d2">Canopy asks the question a map cannot: whether what a seller, a developer, or a carbon registry <b>claims</b> about a place actually holds up — and where the sources <b>disagree</b>. Every verdict is a cited, tamper-evident attestation.</p>
       <a class="cta enter enter-d3" href="#work">Run a verification →</a>
     </div>
-    <div class="specimens enter enter-d3" aria-hidden="true">
-      <div class="spec"><span>Mireye Earth</span></div>
-      <div class="spec"><span>OpenFEMA</span></div>
-      <div class="spec"><span>Moratorium Nation</span></div>
-      <div class="spec"><span>OSM Overpass</span></div>
-    </div>
+  </div>
+</section>
+
+<div class="wrap">
+
+  <section class="plates reveal" aria-label="What Canopy reads">
+    <figure class="plate"><img src="/static/img/plate-terrain.png" alt="Halftone plate of topographic contours"><span>Terrain</span></figure>
+    <figure class="plate"><img src="/static/img/plate-canopy.png" alt="Halftone plate of tree canopy cover"><span>Canopy cover</span></figure>
+    <figure class="plate"><img src="/static/img/plate-watershed.png" alt="Halftone plate of a watershed channel network"><span>Watershed</span></figure>
+    <figure class="plate"><img src="/static/img/plate-parcels.png" alt="Halftone plate of parcel division"><span>Parcels</span></figure>
   </section>
 
   <nav class="tabs reveal" id="work">
