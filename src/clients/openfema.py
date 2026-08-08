@@ -9,6 +9,8 @@ from typing import Any
 import httpx
 from pydantic import BaseModel
 
+from src.clients import cache
+
 BASE_URL = "https://www.fema.gov/api/open/v2"
 CLAIMS_URL = f"{BASE_URL}/FimaNfipClaims"
 DECLARATIONS_URL = f"{BASE_URL}/DisasterDeclarationsSummaries"
@@ -60,6 +62,11 @@ class OpenFemaClient:
         self.timeout = timeout
 
     async def _get(self, url: str, params: dict[str, Any]) -> dict:
+        ck = cache.key("openfema", {"url": url, "params": params})
+        if cache.enabled():
+            hit = cache.get(ck)
+            if hit is not None:
+                return hit
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.get(url, params=params)
             if response.status_code >= 400:
@@ -67,7 +74,8 @@ class OpenFemaClient:
             body = response.json()
             if "error" in body:
                 raise OpenFemaError(str(body["error"])[:300])
-            return body
+        cache.put(ck, body)
+        return body
 
     async def get_declarations(
         self, county_fips: str, *, limit: int = 200

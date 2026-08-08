@@ -10,6 +10,7 @@ from typing import Any
 
 import httpx
 
+from src.clients import cache
 from src.models import Confidence, Coordinate, DataGap, Evidence
 
 BASE_URL = "https://api.mireye.com"
@@ -72,6 +73,15 @@ class MireyeClient:
         if self.offline:
             return self._fixture(path, payload)
 
+        # Cache deterministic endpoints only. /v1/ask runs an LLM pipeline, so its output
+        # isn't reproducible from the inputs — caching it would serve stale prose.
+        cacheable = path in ("/v1/geocode", "/v1/fetch", "/v1/lookup")
+        ck = cache.key(f"mireye{path.replace('/', '_')}", payload) if cacheable else None
+        if ck and cache.enabled():
+            hit = cache.get(ck)
+            if hit is not None:
+                return hit
+
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
@@ -93,7 +103,11 @@ class MireyeClient:
                         code=detail.get("error"),
                     )
                 raise MireyeError(response.text[:300])
-            return response.json()
+            data = response.json()
+
+        if ck:
+            cache.put(ck, data)
+        return data
 
     def _fixture(self, path: str, payload: dict) -> dict:
         name = path.strip("/").replace("/", "_")

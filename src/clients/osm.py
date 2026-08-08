@@ -15,6 +15,8 @@ from pathlib import Path
 import httpx
 from pydantic import BaseModel
 
+from src.clients import cache
+
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 CACHE_PATH = DATA_DIR / "us_data_centers.json"
 
@@ -78,7 +80,13 @@ def protected_areas_at(lat: float, lng: float) -> list[ProtectedArea]:
     OSM is keyless, stable, and well-populated for the parks/reserves/wilderness that
     actually drive avoided-deforestation additionality. Cited as OSM, not claimed as federal.
     """
-    query = f"""[out:json][timeout:60];
+    ck = cache.key("osm_protected", {"lat": round(lat, 5), "lng": round(lng, 5)})
+    if cache.enabled():
+        hit = cache.get(ck)
+        if hit is not None:
+            return [ProtectedArea(**row) for row in hit]
+
+    query = f"""[out:json][timeout:25];
 is_in({lat},{lng})->.a;
 (
   area.a[boundary=protected_area];
@@ -90,14 +98,19 @@ out tags;"""
     last_error: Exception | None = None
     for endpoint in ENDPOINTS:
         try:
+            # Short timeout on purpose: Overpass is the flakiest source in the stack, and
+            # a live cache-miss must fail fast (→ a declared data gap) rather than hang a
+            # demo for a minute. Pre-warm the demo coordinates so this path isn't hit live.
             response = httpx.post(
                 endpoint,
                 data={"data": query},
                 headers={"User-Agent": USER_AGENT},
-                timeout=75.0,
+                timeout=20.0,
             )
             response.raise_for_status()
-            return _parse_protected(response.json().get("elements", []))
+            areas = _parse_protected(response.json().get("elements", []))
+            cache.put(ck, [a.model_dump() for a in areas])
+            return areas
         except Exception as exc:
             last_error = exc
             continue

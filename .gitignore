@@ -35,3 +35,6 @@ docs/DECISION_LOG.md
 # transient scan run log
 findings_run.log
 findings_test/
+
+# response cache (regenerable; warm with scripts/warm_demo.py)
+.cache/

@@ -86,6 +86,17 @@ permitting risk. High score = an excellent site the market is forced to walk awa
 is exactly where a community-benefit package unlocks the most value. The moratorium-vs-
 viability gap map *is* the market map.
 
+**The finding (full run, 1,814 of 1,824 screened):**
+
+> **866 — nearly half — are DISPUTED**: physically viable land now inside an active local
+> moratorium's blast radius. 736 clear a first-pass screen; 212 are flagged. The top of the
+> stranded list isn't fringe — it's **Google, AWS, QTS, Flexential, Digital Realty, Switch**,
+> all scoring ~0.95 (near-perfect sites, permitting cratered). Every one's strongest path to
+> yes is grid flexibility (VPP), because they cluster in PJM/MISO metros with capacity markets.
+
+See [`docs/SCAN_RUNLOG.md`](docs/SCAN_RUNLOG.md) for the full run log and caveats, and
+[`findings/finding.md`](findings/finding.md) for the ranked top-40 and method.
+
 ```bash
 python -m src.cli scan --limit 50 --top 25
 ```
