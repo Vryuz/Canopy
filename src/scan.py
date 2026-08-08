@@ -10,6 +10,9 @@ Wave-3 thesis.
 from __future__ import annotations
 
 import asyncio
+import json
+import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -55,17 +58,20 @@ async def _screen_one(
     moratoria: MoratoriaClient,
     dc: DataCenter,
     sem: asyncio.Semaphore,
-) -> SiteScreen | None:
+) -> tuple[DataCenter, SiteScreen | None]:
     async with sem:
         try:
-            return await screen_site(
+            screen = await screen_site(
                 mireye,
                 Coordinate(lat=dc.lat, lng=dc.lng),
                 moratoria=moratoria,
                 name=dc.name or dc.osm_id,
             )
-        except MireyeError:
-            return None
+            return dc, screen
+        except Exception:
+            # A single site's failure (Mireye error, timeout, bad geometry) must never
+            # abort a 1,800-site run — record it as a failure and carry on.
+            return dc, None
 
 
 def _to_row(screen: SiteScreen) -> ScanRow:
@@ -87,14 +93,46 @@ def _to_row(screen: SiteScreen) -> ScanRow:
     )
 
 
+def _load_checkpoint(path: Path) -> dict[str, ScanRow]:
+    """Rows already screened in a prior (possibly interrupted) run, keyed by osm id.
+
+    A long national scan is credit-metered and network-bound; resuming means an
+    interruption at site 1,500 costs nothing to recover instead of re-billing 1,500 sites.
+    """
+    if not path.exists():
+        return {}
+    done: dict[str, ScanRow] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+            done[rec["osm_id"]] = ScanRow(**rec["row"])
+        except (json.JSONDecodeError, KeyError):
+            continue  # tolerate a torn final line from a hard kill
+    return done
+
+
+def _log(msg: str) -> None:
+    print(f"[{datetime.now():%H:%M:%S}] {msg}", flush=True)
+
+
 async def run_scan(
     *,
     limit: int | None = None,
     concurrency: int = DEFAULT_CONCURRENCY,
     mireye: MireyeClient | None = None,
     attestation_dir: Path | None = None,
+    checkpoint: Path | None = None,
+    progress_every: int = 25,
 ) -> ScanResult:
-    """Screen (a slice of) every OSM-mapped US data center and rank by stranded viability."""
+    """Screen (a slice of) every OSM-mapped US data center and rank by stranded viability.
+
+    Processes sites as they complete (not one big gather at the end) so progress is
+    visible and every finished row is appended to `checkpoint` immediately — the run is
+    both observable and resumable.
+    """
     mireye = mireye or MireyeClient()
     moratoria = MoratoriaClient()
     moratoria.load()  # warm the cache once, not per-site
@@ -103,25 +141,51 @@ async def run_scan(
     if limit:
         centers = centers[:limit]
 
-    sem = asyncio.Semaphore(concurrency)
-    screens = await asyncio.gather(
-        *(_screen_one(mireye, moratoria, dc, sem) for dc in centers)
-    )
+    done = _load_checkpoint(checkpoint) if checkpoint else {}
+    rows: dict[str, ScanRow] = dict(done)
+    pending = [dc for dc in centers if dc.osm_id not in done]
+    failed = 0
 
-    rows: list[ScanRow] = []
-    for screen in screens:
-        if screen is None:
-            continue
-        rows.append(_to_row(screen))
-        if attestation_dir is not None and screen.verdict.is_actionable:
-            _write_attestation(screen, attestation_dir)
+    if done:
+        _log(f"Resuming: {len(done)} already screened, {len(pending)} remaining.")
+    _log(f"Screening {len(pending)} of {len(centers)} sites at concurrency {concurrency}…")
+
+    if checkpoint is not None:
+        checkpoint.parent.mkdir(parents=True, exist_ok=True)
+    ckpt = checkpoint.open("a", encoding="utf-8") if checkpoint else None
+    started = time.monotonic()
+    completed = 0
+    try:
+        sem = asyncio.Semaphore(concurrency)
+        tasks = [asyncio.create_task(_screen_one(mireye, moratoria, dc, sem)) for dc in pending]
+        for coro in asyncio.as_completed(tasks):
+            dc, screen = await coro
+            completed += 1
+            if screen is None:
+                failed += 1
+            else:
+                row = _to_row(screen)
+                rows[dc.osm_id] = row
+                if ckpt is not None:
+                    ckpt.write(json.dumps({"osm_id": dc.osm_id, "row": row.model_dump()}) + "\n")
+                    ckpt.flush()
+                if attestation_dir is not None and screen.verdict.is_actionable:
+                    _write_attestation(screen, attestation_dir)
+            if completed % progress_every == 0 or completed == len(pending):
+                rate = completed / max(time.monotonic() - started, 1e-6) * 60
+                eta = (len(pending) - completed) / max(rate / 60, 1e-6)
+                _log(f"  {completed}/{len(pending)} done · {failed} failed · "
+                     f"{rate:.0f}/min · ETA {eta/60:.1f} min")
+    finally:
+        if ckpt is not None:
+            ckpt.close()
 
     return ScanResult(
         generated_at=datetime.now(timezone.utc),
         total_found=len(centers),
         screened=len(rows),
-        failed=sum(1 for s in screens if s is None),
-        rows=rows,
+        failed=failed,
+        rows=list(rows.values()),
     )
 
 

@@ -157,14 +157,26 @@ def datacenter(location: str, radius: float, offline: bool, attest: Path | None)
     help="Directory for the finding + per-site attestations.",
 )
 @click.option("--top", default=25, show_default=True, help="How many sites to rank in the finding.")
-def scan(limit: int | None, concurrency: int, out: Path, top: int) -> None:
+@click.option("--resume/--no-resume", default=True, show_default=True,
+              help="Resume from the checkpoint if one exists.")
+def scan(limit: int | None, concurrency: int, out: Path, top: int, resume: bool) -> None:
     """Screen every OSM-mapped US data center and rank by stranded viability."""
     from src.scan import render_finding, run_scan
+
+    out.mkdir(parents=True, exist_ok=True)
+    checkpoint = out / "checkpoint.jsonl"
+    if not resume and checkpoint.exists():
+        checkpoint.unlink()
 
     console.print("[dim]Fetching US data centers from OpenStreetMap…[/dim]")
     try:
         result = asyncio.run(
-            run_scan(limit=limit, concurrency=concurrency, attestation_dir=out / "attestations")
+            run_scan(
+                limit=limit,
+                concurrency=concurrency,
+                attestation_dir=out / "attestations",
+                checkpoint=checkpoint,
+            )
         )
     except MireyeError as exc:
         raise click.ClickException(f"Mireye: {exc}") from exc
@@ -174,7 +186,6 @@ def scan(limit: int | None, concurrency: int, out: Path, top: int) -> None:
         f"({result.failed} failed)."
     )
 
-    out.mkdir(parents=True, exist_ok=True)
     finding = render_finding(result, top_n=top)
     (out / "finding.md").write_text(finding, encoding="utf-8")
     (out / "scan.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
