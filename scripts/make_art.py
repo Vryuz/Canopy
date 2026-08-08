@@ -12,6 +12,7 @@ Out:  web/img/*.png, web/img/logo.svg
 
 from __future__ import annotations
 
+import heapq
 import math
 from pathlib import Path
 
@@ -117,46 +118,145 @@ def field_horizon(w: int = 1500, h: int = 620) -> np.ndarray:
 
 
 def field_terrain(w: int = 320, h: int = 240) -> np.ndarray:
-    """Topographic contour bands."""
-    elev = fbm((h, w), 5, 110)
-    bands = np.sin(elev * math.pi * 14.0)
-    contours = 1.0 - np.clip(1.0 - np.abs(bands) * 4.5, 0, 1)
-    return np.clip(contours * 0.75 + elev * 0.45, 0, 1)
+    """Real topographic contour lines.
+
+    Halftoning a raw elevation field just yields noise. Contours have to be drawn as
+    *lines*: find where elevation crosses each level, and divide by the local gradient
+    so the line keeps an even width instead of ballooning across flat ground.
+    """
+    elev = fbm((h, w), octaves=5, freq=150)
+    levels = elev * 9.0
+    gy, gx = np.gradient(levels)
+    grad = np.hypot(gx, gy) + 1e-6
+    crossing = np.abs(levels - np.round(levels)) / grad
+    lines = np.clip(crossing / 0.85, 0, 1)
+    # Every fifth contour is an index line, drawn heavier, as on a real map.
+    index = (np.round(levels) % 5 == 0)
+    lines = np.where(index, np.clip(crossing / 1.6, 0, 1), lines)
+    return np.clip(lines, 0, 1)
 
 
 def field_canopy(w: int = 320, h: int = 240) -> np.ndarray:
-    """Tree-crown cover with open gaps."""
-    base = fbm((h, w), 6, 48)
-    crowns = np.clip((base - 0.42) * 3.2, 0, 1)
-    return np.clip(1.0 - crowns * 0.88, 0, 1)
+    """Individual tree crowns, clustered into stands with clearings between them."""
+    img = Image.new("L", (w, h), 255)
+    draw = ImageDraw.Draw(img)
+    density = fbm((h, w), octaves=4, freq=90)
+
+    for _ in range(1400):
+        x, y = int(RNG.integers(0, w)), int(RNG.integers(0, h))
+        # Stands cluster where the density field is high; clearings stay open.
+        if density[y, x] < 0.44 or RNG.random() > density[y, x]:
+            continue
+        r = float(RNG.uniform(2.6, 7.0))
+        tone = int(RNG.integers(20, 95))
+        draw.ellipse([x - r, y - r, x + r, y + r], fill=tone)
+
+    return np.asarray(img.filter(ImageFilter.GaussianBlur(0.6)), np.float32) / 255.0
 
 
-def field_watershed(w: int = 320, h: int = 240) -> np.ndarray:
-    """Ridged noise — the branching channels of a drainage basin."""
-    n = fbm((h, w), 6, 120)
-    ridged = 1.0 - np.abs(n * 2.0 - 1.0)
-    return np.clip(1.0 - np.clip((ridged - 0.62) * 5.0, 0, 1) * 0.95, 0, 1)
+def _fill_pits(elev: np.ndarray) -> np.ndarray:
+    """Priority-flood depression filling.
+
+    Without this, flow terminates in every local minimum and the network comes out as
+    scattered fragments. Leaning on a steep regional tilt "fixes" that by making all
+    flow run straight downhill — which trades fragments for parallel streaks and still
+    isn't a drainage network. Filling the pits is what lets a noise-dominated surface
+    (the kind that actually branches) route properly.
+    """
+    h, w = elev.shape
+    filled = elev.copy()
+    seen = np.zeros((h, w), bool)
+    heap: list[tuple[float, int, int]] = []
+
+    for x in range(w):
+        for y in (0, h - 1):
+            heapq.heappush(heap, (float(filled[y, x]), y, x))
+            seen[y, x] = True
+    for y in range(h):
+        for x in (0, w - 1):
+            if not seen[y, x]:
+                heapq.heappush(heap, (float(filled[y, x]), y, x))
+                seen[y, x] = True
+
+    while heap:
+        e, y, x = heapq.heappop(heap)
+        for dy, dx in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < h and 0 <= nx < w and not seen[ny, nx]:
+                seen[ny, nx] = True
+                # The epsilon keeps a usable gradient across filled flats.
+                raised = max(float(filled[ny, nx]), e + 1e-5)
+                filled[ny, nx] = raised
+                heapq.heappush(heap, (raised, ny, nx))
+    return filled
+
+
+def field_watershed(w: int = 260, h: int = 195) -> np.ndarray:
+    """A dendritic channel network from actual flow accumulation.
+
+    Depressions are filled, then water is routed downhill cell by cell (steepest
+    descent, highest ground first) and the accumulated flow thresholded. Thresholded
+    noise only ever produces blobs; this produces genuine branching drainage.
+    """
+    elev = fbm((h, w), octaves=6, freq=110)
+    tilt = np.linspace(0, 1, h)[:, None]
+    # Noise-dominant so tributaries converge; a light tilt just gives an outlet.
+    elev = _fill_pits(elev * 0.78 + (1.0 - tilt) * 0.22)
+
+    flat = elev.ravel()
+    acc = np.ones(h * w, np.float32)
+    order = np.argsort(flat)[::-1]            # drain from the highest ground down
+    offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+    for idx in order:
+        y, x = divmod(int(idx), w)
+        best, best_elev = -1, flat[idx]
+        for dy, dx in offsets:
+            ny, nx = y + dy, x + dx
+            if 0 <= ny < h and 0 <= nx < w:
+                n_idx = ny * w + nx
+                if flat[n_idx] < best_elev:
+                    best_elev, best = flat[n_idx], n_idx
+        if best >= 0:
+            acc[best] += acc[idx]
+
+    # Channel width grows with the log of upstream area, as real rivers do.
+    # Threshold on catchment size, not on "some flow". At 0.33 of the log range a cell
+    # needs only ~38 upstream cells to qualify, which is almost all of them — the frame
+    # fills with texture. 0.56 keeps the trunk and its real tributaries.
+    strength = np.log1p(acc.reshape(h, w)) / math.log(h * w)
+    channels = np.clip((strength - 0.56) * 10.0, 0, 1)
+    channels = np.asarray(
+        Image.fromarray((channels * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3)),
+        np.float32,
+    ) / 255.0
+    return np.clip(1.0 - channels, 0, 1)
 
 
 def field_parcels(w: int = 320, h: int = 240) -> np.ndarray:
-    """Land division — a jittered lattice of parcels at differing tones."""
-    out = np.ones((h, w), np.float32)
-    tone = fbm((h, w), 3, 70)
-    y = 0
-    while y < h:
-        rh = int(RNG.integers(30, 58))
-        x = 0
-        while x < w:
-            rw = int(RNG.integers(34, 72))
-            block = tone[y : y + rh, x : x + rw]
-            if block.size:
-                v = float(block.mean())
-                out[y : y + rh, x : x + rw] = 0.30 if v > 0.62 else 0.68 if v > 0.42 else 1.0
-            out[y : y + rh, x : x + 1] = 0.12
-            x += rw
-        out[y : y + 1, :] = 0.12
-        y += rh
-    return np.clip(out, 0, 1)
+    """Land division by recursive subdivision — irregular lots, not a uniform lattice."""
+    img = Image.new("L", (w, h), 255)
+    draw = ImageDraw.Draw(img)
+
+    def split(x0: float, y0: float, x1: float, y1: float, depth: int) -> None:
+        bw, bh = x1 - x0, y1 - y0
+        if depth == 0 or (bw < 34 and bh < 34) or RNG.random() < 0.12:
+            tone = int(RNG.choice([255, 255, 232, 210, 165]))
+            draw.rectangle([x0, y0, x1, y1], fill=tone, outline=45, width=1)
+            return
+        # Split the longer side, off-centre, so lots read as surveyed rather than tiled.
+        t = float(RNG.uniform(0.34, 0.66))
+        if bw >= bh:
+            xm = x0 + bw * t
+            split(x0, y0, xm, y1, depth - 1)
+            split(xm, y0, x1, y1, depth - 1)
+        else:
+            ym = y0 + bh * t
+            split(x0, y0, x1, ym, depth - 1)
+            split(x0, ym, x1, y1, depth - 1)
+
+    split(1, 1, w - 2, h - 2, 5)
+    return np.asarray(img, np.float32) / 255.0
 
 
 # ------------------------------------------------------------------ halftone
@@ -262,10 +362,12 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     print("Generating Canopy artwork:")
     emit("hero-horizon", field_horizon(), cell=6, scale=3)
-    emit("plate-terrain", field_terrain())
-    emit("plate-canopy", field_canopy())
-    emit("plate-watershed", field_watershed())
-    emit("plate-parcels", field_parcels())
+    # Finer screen on the plates: at cell=5 the dot lattice swallows contour lines and
+    # channel threads, which is what made the earlier set read as random noise.
+    emit("plate-terrain", field_terrain(), cell=3, scale=5)
+    emit("plate-canopy", field_canopy(), cell=3, scale=5)
+    emit("plate-watershed", field_watershed(), cell=3, scale=5)
+    emit("plate-parcels", field_parcels(), cell=3, scale=5)
     write_logo()
 
 

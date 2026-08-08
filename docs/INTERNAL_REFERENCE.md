@@ -1,10 +1,10 @@
-# Verification Agent — Internal Reference & Build Log
+# Canopy — Internal Reference & Build Log
 
 > Internal working doc. Not the README (that's the outward pitch). This is the "what we
 > actually did, why, what broke, and where we go next" record. Written to be picked up
 > cold after a break.
 
-Last updated: 2026-08-08 (session 2 — scan, community-benefit, attestation).
+Last updated: 2026-08-09 (session 3 — Canopy brand, generated artwork, plate redesign).
 
 > **Session 2 additions** (see §11 at the bottom): the national scan, the community-benefit
 > "path to yes" layer, and the content-hashed attestation artifact. The §1–§10 material below
@@ -541,3 +541,69 @@ combine us with?"). Fixed by adding an independent second source.
   swallowed. Tests: 52 total (was 50), incl. the fusion path and the graceful-degradation path.
 - **GFW note:** Global Forest Watch tree-cover-loss (actual deforestation pixels) needs a free
   API key (403 keyless); logged as the optional keyed upgrade, not built.
+
+---
+
+## 14. Canopy brand: generated artwork, logo, plates (2026-08-08/09)
+
+Rebranded the demo from "Verification Agent" to **Canopy**, with all imagery generated
+rather than sourced (the Dribbble references are other people's artwork).
+
+### 14.1 `scripts/make_art.py`
+One reproducible script produces every asset. A real halftone screen — one dot per cell,
+radius tracking local darkness, supersampled then downscaled — is applied over procedural
+fields. Output: `web/img/*.png` + `logo.svg`.
+
+### 14.2 The plates had to become real structures
+The first set halftoned raw noise fields and looked, correctly, like random noise. Each
+was rebuilt as an actual structure, then screened:
+
+| Plate | Method |
+|---|---|
+| Terrain | Contour **lines**: elevation crossings divided by local gradient so line width stays even; every 5th is a heavier index line |
+| Canopy cover | Individual crowns drawn as circles, clustered by a density field so stands and clearings emerge |
+| Watershed | Priority-flood pit filling → steepest-descent routing → flow accumulation → threshold on catchment size |
+| Parcels | Recursive BSP subdivision with off-centre splits, varied lot tones |
+
+Screen also went finer for the plates (`cell=3, scale=5`): at `cell=5` the dot lattice
+swallowed contour lines and channel threads, which is *why* the first set read as noise.
+
+### 14.3 The watershed took four passes — worth recording
+1. Thresholded ridged noise → blobs, no connectivity.
+2. Flow accumulation on a gently tilted surface → scattered fragments (flow dies in local pits).
+3. Steep regional tilt to escape the pits → parallel vertical streaks, since every cell then
+   drains straight down and nothing converges.
+4. **Priority-flood pit filling + noise-dominant surface** → genuine dendritic network.
+   Threshold also moved from 0.33 to 0.56 of the log range: at 0.33 a cell needs only ~38
+   upstream cells to qualify, so nearly every cell did and the frame filled with texture.
+
+### 14.4 Hero plate
+A forested horizon built like a screen print: flat tonal ridges painted front-over-back with
+mist pooling under each crest. Two earlier failures are documented in §13 of this file
+(gradient-instead-of-landscape, and the inverted `freq` parameter).
+
+### 14.5 Logo — four attempts, all association failures
+Rendered at 160/64/28/16px and inverted each time; the small sizes are where marks break.
+1. Three overlapping crowns → **cloud**. Also a silent bug: `fill-rule="evenodd"` resolves
+   within a single path, never across sibling `<circle>` elements, so the intended
+   negative-space knockout never happened and it rendered as a solid blob.
+2. Nested arcs + dot → **upside-down wifi**.
+3. Concentric contour rings → topographic at 160px, **eye** at 16px.
+4. **Two angular ridge lines** → terrain. Shipped. Smooth parallel curves read as the water
+   glyph, so angular peaks and two lines (not three) were both necessary.
+
+### 14.6 Plate hover interaction
+Pointer-driven parallax: `scale(1.09)` plus up to 9px of translation opposite the cursor,
+110ms while tracking, 620ms eased return on leave. Transform only (compositor-friendly);
+disabled under `prefers-reduced-motion`; rect cached on `pointerenter` to avoid layout
+thrash from read/write interleaving.
+
+### 14.7 Bugs fixed
+- **`.plate` had zero width.** `<figure>` carries a UA default margin of `1em 40px`; 80px per
+  column collapsed the grid tracks. Symptom was subtle — the parallax silently did nothing,
+  because a zero-size rect makes the offsets NaN and `translate(NaNpx)` is dropped by the CSS
+  parser with no error. Fixed with `margin: 0`, plus a guard in the handler.
+- **`index.html` served from cache** during development — spent a cycle debugging markup that
+  was no longer on disk. Added `Cache-Control: no-store` to the index route.
+- **Hero CTA clipped** at short viewports (`overflow: hidden` + inline-block baseline + no
+  bottom padding).

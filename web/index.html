@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=11">
+<link rel="stylesheet" href="/static/style.css?v=13">
 </head>
 <body>
 
@@ -194,6 +194,40 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<":
     if (!nodes.some((n) => n.getAttribute("data-shown") === "true"))
       nodes.forEach((n) => n.setAttribute("data-shown", "true"));
   }, 1200);
+})();
+
+/* --- plates track the cursor, then settle back --- */
+(function () {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const DRIFT = 9; // px of parallax at the edge of a plate
+
+  document.querySelectorAll(".plate").forEach((plate) => {
+    const img = plate.querySelector("img");
+    let rect = null;
+
+    // Measure once on enter: reading getBoundingClientRect on every pointermove,
+    // interleaved with writing transform, thrashes layout.
+    plate.addEventListener("pointerenter", () => { rect = plate.getBoundingClientRect(); });
+
+    plate.addEventListener("pointermove", (e) => {
+      if (!rect) rect = plate.getBoundingClientRect();
+      // A zero-size rect would make these NaN, and `translate(NaNpx)` is silently
+      // dropped by the parser — the effect just stops working with no error.
+      if (!rect.width || !rect.height) return;
+      const nx = (e.clientX - rect.left) / rect.width - 0.5;
+      const ny = (e.clientY - rect.top) / rect.height - 0.5;
+      // Scale up first so the parallax shift never exposes the plate's edge.
+      img.style.transition = "transform 110ms linear";
+      img.style.transform =
+        `scale(1.09) translate(${(-nx * DRIFT).toFixed(2)}px, ${(-ny * DRIFT).toFixed(2)}px)`;
+    });
+
+    plate.addEventListener("pointerleave", () => {
+      rect = null;
+      img.style.transition = "transform 620ms var(--ease, cubic-bezier(.16,1,.3,1))";
+      img.style.transform = "";
+    });
+  });
 })();
 
 document.querySelectorAll(".tab").forEach(tab => {
