@@ -31,3 +31,7 @@ findings/
 # --- local-only strategy docs (candid; keep local, never push) ---
 docs/COMPANY_THESIS.md
 docs/DECISION_LOG.md
+
+# transient scan run log
+findings_run.log
+findings_test/
