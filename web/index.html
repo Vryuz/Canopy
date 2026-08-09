@@ -323,7 +323,14 @@ function renderMemo(m) {
     ${signalList(m.signals, "Corroborating signals")}
     ${evidenceTable(m.evidence)}
     ${gapList(m.data_gaps)}
+    ${shareLink(m.attestation_id)}
   </div>`;
+}
+
+function shareLink(id) {
+  if (!id) return "";
+  return `<div class="share">Attestation <a href="/a/${esc(id)}" target="_blank" rel="noopener">/a/${esc(id)} →</a>
+    <span class="dim">shareable · self-verifying · <a href="/a/${esc(id)}.json" target="_blank" rel="noopener">raw JSON</a></span></div>`;
 }
 
 function wireMemoForm(formId, outId, endpoint, loadingText) {
@@ -368,6 +375,7 @@ $("#dc-form").onsubmit = async (e) => {
       ${signalList(s.signals, "Regulatory &amp; opposition signals")}
       ${evidenceTable(s.evidence)}
       ${gapList(s.data_gaps)}
+      ${shareLink(s.attestation_id)}
     </div>`;
   } catch (err) { out.innerHTML = `<div class="error">${esc(err.message)}</div>`; }
 };

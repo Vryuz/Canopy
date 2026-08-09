@@ -607,3 +607,39 @@ thrash from read/write interleaving.
   was no longer on disk. Added `Cache-Control: no-store` to the index route.
 - **Hero CTA clipped** at short viewports (`overflow: hidden` + inline-block baseline + no
   bottom padding).
+
+---
+
+## 15. Campus dedupe + shareable attestation surface (2026-08-09)
+
+Two product-hardening pieces after the full scan landed.
+
+### 15.1 Campus rollup (`src/scan.py`)
+1,814 OSM buildings → **1,154 campuses**. Operator normalization (`_ALIASES` +
+first-token) then within-operator greedy spatial clustering at 4 km. Unnamed OSM features
+stay singletons labelled "Unnamed data center". Campus-level verdicts: 500 disputed (43%),
+541 verified, 113 flagged — the honest headline (building counts triple-count campuses;
+135 "Amazon Web Services" rows were one operator). `finding.md` now ranks campuses with
+building counts; `campuses.json` added. Regenerated from the existing `scan.json` — no
+re-billing.
+
+### 15.2 Shareable attestation surface
+The difference between a demo and a product: a verdict you can send someone.
+- `src/output/store.py` — save/load attestations to `data/attestations/{id}.json`; id = first
+  12 hex of the content hash. Path-traversal guarded (`isalnum`). Thin interface so Postgres/S3
+  is a one-file swap.
+- `src/output/attestation_page.py` — renders a standalone Canopy-styled page.
+- API: `/verify/*` and `/screen/*` now persist + return `attestation_id`; `GET /a/{id}` (HTML)
+  and `GET /a/{id}.json` (raw) added. `attestation_id` added to `VerificationMemo`/`SiteScreen`,
+  **excluded from the hash** (it's derived *from* the hash — can't be an input to it).
+- Web UI shows a "Attestation /a/{id} → · raw JSON" link under every result.
+
+### 15.3 The self-verify bug worth remembering
+First cut re-canonicalised the body in JS and sha256'd it — it falsely reported **TAMPERED**
+on an untouched record. Two cross-language divergences from Python's `json.dumps`:
+1. **Non-ASCII escaping** — Python (`ensure_ascii=True`) emits `\u2014` for the em-dashes all
+   over our reasoning text; JS `JSON.stringify` keeps them raw.
+2. **Float formatting** — Python renders `1.0`, JS renders `1`.
+Fix: embed the *exact* canonical string the server hashed and sha256 **that** in the browser —
+identical bytes can't drift, yet a real body edit still breaks the match (stored hash no longer
+matches the string). Both branches verified live (✓ Intact and ✗ Tampered). Tests: 55 (was 52).

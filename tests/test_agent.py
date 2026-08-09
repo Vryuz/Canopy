@@ -616,6 +616,63 @@ def test_attestation_is_tamper_evident():
     assert not att.verify_integrity()
 
 
+def test_attestation_id_excluded_from_hash():
+    """Attaching the shareable id must not change the content the attestation commits to."""
+    from src.models import Coordinate, Verdict, VerdictKind, VerificationMemo, Claim
+    from src.output.attestation import attest_memo
+
+    def build(att_id):
+        memo = VerificationMemo(
+            claim=Claim(text="x", subject="fema_flood_zone"),
+            location=Coordinate(lat=1.0, lng=2.0),
+            verdict=Verdict(kind=VerdictKind.VERIFIED, confidence=Confidence.HIGH, reasoning="ok"),
+            attestation_id=att_id,
+        )
+        return attest_memo(memo).content_hash
+
+    assert build(None) == build("deadbeef1234")
+
+
+def test_store_roundtrip_and_traversal_guard(tmp_path, monkeypatch):
+    from src.models import Coordinate, Verdict, VerdictKind, VerificationMemo, Claim
+    from src.output import store
+    from src.output.attestation import attest_memo
+
+    monkeypatch.setattr(store, "STORE_DIR", tmp_path)
+    memo = VerificationMemo(
+        claim=Claim(text="not in a flood zone", subject="fema_flood_zone"),
+        location=Coordinate(lat=29.3, lng=-94.8),
+        verdict=Verdict(kind=VerdictKind.DISPUTED, confidence=Confidence.HIGH, reasoning="Zone AE"),
+    )
+    att_id = store.save(attest_memo(memo))
+    assert len(att_id) == store.ID_LEN
+    loaded = store.load(att_id)
+    assert loaded is not None and loaded.verify_integrity()
+    # id derives from the hash, and a path-y id is rejected outright.
+    assert store.load("../secret") is None
+    assert store.load("nope") is None
+
+
+def test_attestation_page_renders_and_reports_verdict():
+    from src.models import Coordinate, Verdict, VerdictKind, VerificationMemo, Claim, Discrepancy
+    from src.output.attestation import attest_memo
+    from src.output.attestation_page import render_page
+
+    memo = VerificationMemo(
+        claim=Claim(text="not in a flood zone", subject="fema_flood_zone"),
+        location=Coordinate(lat=29.3, lng=-94.8),
+        verdict=Verdict(kind=VerdictKind.DISPUTED, confidence=Confidence.HIGH, reasoning="Zone AE"),
+        evidence=[_evidence("fema_flood_zone", "AE", source="FEMA_NFHL")],
+        discrepancies=[Discrepancy(field="fema_flood_zone", claimed="X", observed="AE",
+                                   severity=Severity.CRITICAL, explanation="mapped AE")],
+    )
+    att = attest_memo(memo)
+    html = render_page(att, att.content_hash[:12])
+    assert "DISPUTED" in html
+    assert att.content_hash in html          # claimed hash embedded for client re-check
+    assert "crypto.subtle.digest" in html    # self-verifying script present
+
+
 def test_attestation_hash_is_stable_across_runs():
     from src.models import Coordinate, Verdict, VerdictKind, VerificationMemo, Claim
     from src.output.attestation import attest_memo

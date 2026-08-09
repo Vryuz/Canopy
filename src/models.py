@@ -140,6 +140,9 @@ class VerificationMemo(BaseModel):
     signals: list[Signal] = Field(default_factory=list)
     data_gaps: list[DataGap] = Field(default_factory=list)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Set once the memo is persisted; the shareable /a/{id} address. Excluded from the
+    # attestation hash so attaching it can't change the content it commits to.
+    attestation_id: str | None = None
 
     def sources(self) -> list[str]:
         seen: list[str] = []
@@ -197,6 +200,7 @@ class SiteScreen(BaseModel):
     path_to_yes: PathToYes | None = None
     name: str | None = None  # site label, when screened from a named list
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    attestation_id: str | None = None  # shareable /a/{id}; excluded from the hash
 
     def sources(self) -> list[str]:
         seen: list[str] = []

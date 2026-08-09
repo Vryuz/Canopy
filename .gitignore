@@ -38,3 +38,6 @@ findings_test/
 
 # response cache (regenerable; warm with scripts/warm_demo.py)
 .cache/
+
+# runtime attestation store
+data/attestations/

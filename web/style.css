@@ -361,6 +361,33 @@ a:hover { border-bottom-color: var(--ink); }
 .foot-cols h4 { font-family: var(--grotesk); font-weight: 700; font-size: 1rem; letter-spacing: -0.02em; margin: 0.5rem 0 0.4rem; color: var(--ink); }
 .foot-cols p { font-family: var(--mono); font-size: 0.72rem; line-height: 1.65; color: var(--ink-2); margin: 0; }
 
+/* --- standalone attestation page (/a/{id}) --- */
+.att { padding-top: clamp(2rem, 5vw, 3.5rem); padding-bottom: 4rem; max-width: 860px; }
+.att-head { margin-bottom: 1.6rem; }
+.att-head h1 { font-size: clamp(1.6rem, 1rem + 2.6vw, 2.6rem); font-weight: 700; letter-spacing: -0.03em; margin: 0.5rem 0 0.9rem; line-height: 1.02; }
+.att .verdict { margin-bottom: 0.9rem; }
+.att .reason { font-size: 1rem; line-height: 1.55; color: var(--ink); max-width: 64ch; }
+
+.integrity {
+  border: 1px solid var(--line); background: var(--surface);
+  padding: 1.1rem 1.2rem; margin: 1.4rem 0 1.8rem;
+}
+.integrity.ok { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.integrity.bad { border-color: var(--accent); }
+.integrity .label { margin-bottom: 0.6rem; }
+.hashrow { display: flex; gap: 0.7rem; align-items: baseline; font-size: 0.72rem; margin-bottom: 0.25rem; }
+.hashrow span { font-family: var(--mono); color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.1em; width: 6.5rem; flex: none; }
+.hashrow code { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-2); word-break: break-all; }
+.integrity-verdict { font-family: var(--mono); font-size: 0.8rem; margin: 0.6rem 0 0.5rem; color: var(--ink-3); }
+.integrity-verdict.intact { color: var(--ok); }
+.integrity-verdict.tampered { color: var(--accent); font-weight: 600; }
+.foot-note { margin-top: 2rem; font-size: 0.8rem; line-height: 1.6; }
+
+/* Share link shown under a result in the demo. */
+.share { margin-top: 1.1rem; font-family: var(--mono); font-size: 0.76rem; }
+.share a { color: var(--ink); border-bottom: 1px solid var(--ink-4); }
+.share a:hover { border-bottom-color: var(--ink); }
+
 /* --- motion: reveal opts in via script, content visible by default --- */
 .js-reveal .reveal { opacity: 0; transform: translateY(14px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); will-change: opacity, transform; }
 .js-reveal .reveal[data-shown="true"] { opacity: 1; transform: none; will-change: auto; }

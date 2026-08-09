@@ -160,6 +160,21 @@ regardless, so you cannot be paid to prevent a loss that law already prevents. N
 alone catches this; the combination does. This is Canopy's Wedge 1 (sell the attestation *to*
 developers, don't become one), dry-run on US data.
 
+## Every verdict is a shareable, self-verifying attestation
+
+A verification is only worth something if a counterparty can pull it up later and check it.
+Every `/verify/*` and `/screen/*` call persists its result and returns an `attestation_id` — a
+shareable URL:
+
+- **`/a/{id}`** — a standalone page (Canopy-styled) with the verdict, discrepancies, evidence,
+  and sources. It **recomputes the content hash in the browser** and shows ✓ Intact / ✗
+  Tampered, so the page proves its own integrity rather than asserting it.
+- **`/a/{id}.json`** — the raw attestation, for a third party to re-verify with their own tools.
+
+The id *is* the first 12 hex of the sha256 content hash, so the address itself is a commitment:
+alter the body and the id no longer matches. This is the product surface — the underwriter, the
+VVB, the county reviewer each get a link they can trust without trusting us.
+
 ## Why it's an agent, not a dashboard
 
 It **reasons** — diffs a claim against multiple independent sources and weighs contradictions by severity, distinguishing a claim that *understates* risk from one that overstates it.

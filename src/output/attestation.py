@@ -62,10 +62,11 @@ def _hash_body(body: dict[str, Any]) -> str:
 
 
 def _issued_body(model: BaseModel) -> dict[str, Any]:
-    # generated_at is excluded from the hashed body: it's wall-clock noise that would make
-    # two otherwise-identical verifications hash differently. The attestation's own
-    # issued_at records when the artifact was minted.
-    return model.model_dump(mode="json", exclude={"generated_at"})
+    # Excluded from the hashed body: generated_at (wall-clock noise that would make two
+    # otherwise-identical verifications hash differently) and attestation_id (assigned
+    # *from* the hash, so it can't be an input to it). The attestation's own issued_at
+    # records when the artifact was minted.
+    return model.model_dump(mode="json", exclude={"generated_at", "attestation_id"})
 
 
 def attest_memo(memo: VerificationMemo) -> Attestation:
