@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canopy — the stranded half of America's data centers</title>
+<link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=14">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <a href="/" style="display:flex;align-items:center;gap:.5rem;color:inherit;text-decoration:none;border:0">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.6 7.9 7.2l3.8 4.9 3.5-3.6 6.3 7.2"/><path d="M2.5 20.6 8.7 15l3.7 3.4 4.2-3.7 4.9 5.2"/></svg>
+      <b>Canopy</b>
+    </a>
+  </div>
+  <div class="label"><a href="/">Verification demo →</a></div>
+</header>
+
+<div class="wrap map-wrap">
+  <div class="map-head">
+    <span class="label">National scan · 1,814 buildings → 1,154 campuses</span>
+    <h1 class="display">The stranded half of America's data centers</h1>
+    <p class="lede">Every OSM-mapped US data center, screened on Mireye ground truth and cross-checked
+    against active local moratoria. <b class="accent">Red</b> is a physically viable campus sitting inside
+    an enacted moratorium's reach; <b>ink</b> clears a first-pass screen. Hover any dot.</p>
+  </div>
+
+  <div class="map-stats" id="stats"></div>
+
+  <figure class="map-figure">
+    <svg id="map" viewBox="0 0 1000 620" role="img" aria-label="Map of US data centers by permitting risk"></svg>
+    <div class="map-legend">
+      <span><i class="dot-disputed"></i> Disputed</span>
+      <span><i class="dot-flagged"></i> Flagged</span>
+      <span><i class="dot-verified"></i> Verified</span>
+      <span class="dim">dot size = buildings on the campus</span>
+    </div>
+    <div id="tip" class="map-tip" hidden></div>
+  </figure>
+
+  <p class="foot-note dim">Projection is a simple CONUS equirectangular with latitude correction —
+  a scatter, not a survey map. Campus rollup is operator + 4&nbsp;km clustering. Method and caveats
+  in the run log; every dot resolves to a cited, re-verifiable attestation.</p>
+</div>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+const VERDICT_COLOR = { disputed: "var(--accent)", flagged: "var(--warn)", verified: "var(--ink-3)" };
+// CONUS bounds; points outside (a few strays) are clamped in.
+const B = { latMin: 24.0, latMax: 49.5, lngMin: -125.0, lngMax: -66.5 };
+const W = 1000, H = 620, PAD = 24;
+const MEAN_LAT_COS = Math.cos((B.latMin + B.latMax) / 2 * Math.PI / 180);
+
+function project(lat, lng) {
+  const x0 = B.lngMin, x1 = B.lngMax;
+  const nx = (lng - x0) / (x1 - x0);
+  const ny = (lat - B.latMin) / (B.latMax - B.latMin);
+  // width driven by longitude corrected for latitude convergence, centered
+  const spanX = (W - 2 * PAD);
+  const x = PAD + nx * spanX;
+  const y = PAD + (1 - ny) * (H - 2 * PAD);
+  return [x, y];
+}
+
+async function main() {
+  let rows;
+  try {
+    const r = await fetch("/scan/campuses");
+    if (!r.ok) throw new Error(await r.text());
+    rows = await r.json();
+  } catch (e) {
+    document.getElementById("stats").innerHTML =
+      `<div class="error">No scan data yet — run <span class="mono">python -m src.cli scan</span>.</div>`;
+    return;
+  }
+
+  const svg = document.getElementById("map");
+  const counts = { disputed: 0, flagged: 0, verified: 0 };
+
+  // Draw verified first, disputed last, so the red sits on top and reads as the story.
+  const order = { verified: 0, flagged: 1, disputed: 2 };
+  rows.sort((a, b) => order[a.verdict] - order[b.verdict]);
+
+  for (const c of rows) {
+    counts[c.verdict] = (counts[c.verdict] || 0) + 1;
+    const [x, y] = project(c.lat, c.lng);
+    if (x < 0 || x > W || y < 0 || y > H) continue;
+    const dot = document.createElementNS(NS, "circle");
+    dot.setAttribute("cx", x.toFixed(1));
+    dot.setAttribute("cy", y.toFixed(1));
+    dot.setAttribute("r", (1.7 + Math.min(3, Math.log2((c.building_count || 1) + 1))).toFixed(1));
+    dot.setAttribute("fill", VERDICT_COLOR[c.verdict] || "var(--ink-3)");
+    dot.setAttribute("fill-opacity", c.verdict === "verified" ? "0.5" : "0.85");
+    dot.classList.add("mdot");
+    dot.addEventListener("pointerenter", (e) => showTip(e, c));
+    dot.addEventListener("pointerleave", hideTip);
+    svg.appendChild(dot);
+  }
+
+  const total = rows.length;
+  const pct = (n) => Math.round(n / total * 100);
+  document.getElementById("stats").innerHTML = `
+    <div class="stat"><span class="stat-n accent">${counts.disputed}</span><span class="stat-l">Disputed · ${pct(counts.disputed)}%</span></div>
+    <div class="stat"><span class="stat-n">${counts.verified}</span><span class="stat-l">Verified · ${pct(counts.verified)}%</span></div>
+    <div class="stat"><span class="stat-n">${counts.flagged}</span><span class="stat-l">Flagged · ${pct(counts.flagged)}%</span></div>
+    <div class="stat"><span class="stat-n">${total}</span><span class="stat-l">Campuses screened</span></div>`;
+}
+
+const tip = () => document.getElementById("tip");
+function showTip(e, c) {
+  const t = tip();
+  const perm = c.permitting == null ? "—" : c.permitting.toFixed(2);
+  t.innerHTML = `<b>${esc(c.name)}</b> <span class="dim">${esc(c.operator || "")}</span><br>
+    <span class="badge ${esc(c.verdict)}">${esc(c.verdict)}</span>
+    <span class="mono">stranded ${c.stranded_viability.toFixed(2)} · phys ${c.physical_mean.toFixed(2)} · permit ${perm}</span><br>
+    <span class="dim mono">${c.building_count} building${c.building_count === 1 ? "" : "s"}${c.top_lever ? " · " + esc(c.top_lever) : ""}</span>`;
+  t.hidden = false;
+  const rect = document.getElementById("map").getBoundingClientRect();
+  const fx = e.clientX - rect.left, fy = e.clientY - rect.top;
+  t.style.left = Math.min(rect.width - 240, fx + 14) + "px";
+  t.style.top = (fy + 14) + "px";
+}
+function hideTip() { tip().hidden = true; }
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+
+main();
+</script>
+</body>
+</html>

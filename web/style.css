@@ -383,6 +383,43 @@ a:hover { border-bottom-color: var(--ink); }
 .integrity-verdict.tampered { color: var(--accent); font-weight: 600; }
 .foot-note { margin-top: 2rem; font-size: 0.8rem; line-height: 1.6; }
 
+/* --- national map (/map) --- */
+.map-wrap { padding-top: clamp(2rem, 5vw, 3.5rem); padding-bottom: 4rem; max-width: 1080px; }
+.map-head { max-width: 60ch; margin-bottom: 1.6rem; }
+.map-head h1 { font-size: clamp(1.8rem, 1rem + 3vw, 3rem); font-weight: 700; letter-spacing: -0.03em; margin: 0.5rem 0 0.9rem; line-height: 1.0; }
+.map-head .lede { font-family: var(--mono); font-size: 0.82rem; line-height: 1.7; color: var(--ink-2); }
+.map-head .accent, .lede .accent { color: var(--accent); font-weight: 600; }
+
+.map-stats { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--line); margin-bottom: 1.4rem; }
+.map-stats .stat { flex: 1 1 0; min-width: 130px; padding: 1rem 1.2rem; border-right: 1px solid var(--line); }
+.map-stats .stat:last-child { border-right: 0; }
+.stat-n { display: block; font-family: var(--grotesk); font-weight: 700; font-size: 1.9rem; letter-spacing: -0.03em; color: var(--ink); line-height: 1; }
+.stat-n.accent { color: var(--accent); }
+.stat-l { display: block; margin-top: 0.35rem; font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+
+.map-figure { position: relative; margin: 0; border: 1px solid var(--line); background: var(--surface); }
+.map-figure svg {
+  display: block; width: 100%; height: auto;
+  /* the drafting grid, behind the dots */
+  background-image:
+    linear-gradient(to right, var(--grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+.mdot { cursor: crosshair; transition: fill-opacity 120ms; }
+.mdot:hover { fill-opacity: 1; }
+
+.map-legend { display: flex; flex-wrap: wrap; gap: 1.2rem; padding: 0.8rem 1.1rem; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 0.7rem; color: var(--ink-2); align-items: center; }
+.map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; }
+.map-legend .dot-disputed { background: var(--accent); }
+.map-legend .dot-flagged { background: var(--warn); }
+.map-legend .dot-verified { background: var(--ink-3); }
+
+.map-tip { position: absolute; z-index: 5; max-width: 240px; background: var(--ink); color: var(--paper); padding: 0.55rem 0.7rem; font-size: 0.76rem; line-height: 1.4; pointer-events: none; border-radius: 3px; box-shadow: 0 6px 20px rgba(0,0,0,0.18); }
+.map-tip .dim { color: var(--ink-4); }
+.map-tip .mono { font-family: var(--mono); font-size: 0.68rem; }
+.map-tip .badge { font-size: 0.6rem; padding: 0.1rem 0.4rem; margin-right: 0.3rem; }
+
 /* Share link shown under a result in the demo. */
 .share { margin-top: 1.1rem; font-family: var(--mono); font-size: 0.76rem; }
 .share a { color: var(--ink); border-bottom: 1px solid var(--ink-4); }

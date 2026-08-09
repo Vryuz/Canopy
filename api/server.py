@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from pathlib import Path
@@ -144,6 +145,26 @@ _PAGE_SHELL = """<!doctype html><html lang="en"><head>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css?v=13">
 </head><body>{body}</body></html>"""
+
+
+FINDINGS_DIR = Path(__file__).resolve().parents[1] / "findings"
+
+
+@app.get("/scan/campuses")
+def scan_campuses() -> JSONResponse:
+    """The national scan rolled up to campuses — the data behind the /map view."""
+    path = FINDINGS_DIR / "campuses.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="no scan yet — run `python -m src.cli scan`")
+    return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
+
+
+@app.get("/map", response_class=HTMLResponse)
+def national_map() -> HTMLResponse:
+    return HTMLResponse(
+        (WEB_DIR / "map.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, must-revalidate"},
+    )
 
 
 @app.get("/")
