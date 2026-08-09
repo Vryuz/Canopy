@@ -406,6 +406,7 @@ a:hover { border-bottom-color: var(--ink); }
     linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
   background-size: 44px 44px;
 }
+.states path { fill: var(--surface); stroke: var(--ink-4); stroke-width: 0.6; stroke-linejoin: round; }
 .mdot { cursor: crosshair; transition: fill-opacity 120ms; }
 .mdot:hover { fill-opacity: 1; }
 

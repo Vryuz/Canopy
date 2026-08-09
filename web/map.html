@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=14">
+<link rel="stylesheet" href="/static/style.css?v=15">
 </head>
 <body>
 
@@ -44,31 +44,88 @@
     <div id="tip" class="map-tip" hidden></div>
   </figure>
 
-  <p class="foot-note dim">Projection is a simple CONUS equirectangular with latitude correction —
-  a scatter, not a survey map. Campus rollup is operator + 4&nbsp;km clustering. Method and caveats
-  in the run log; every dot resolves to a cited, re-verifiable attestation.</p>
+  <p class="foot-note dim">Albers equal-area conic (CONUS); state outlines from US Census cartographic
+  boundaries. Campus rollup is operator + 4&nbsp;km clustering. Every dot resolves to a cited,
+  re-verifiable attestation; method and caveats in the run log.</p>
 </div>
 
 <script>
 const NS = "http://www.w3.org/2000/svg";
 const VERDICT_COLOR = { disputed: "var(--accent)", flagged: "var(--warn)", verified: "var(--ink-3)" };
-// CONUS bounds; points outside (a few strays) are clamped in.
-const B = { latMin: 24.0, latMax: 49.5, lngMin: -125.0, lngMax: -66.5 };
-const W = 1000, H = 620, PAD = 24;
-const MEAN_LAT_COS = Math.cos((B.latMin + B.latMax) / 2 * Math.PI / 180);
+const W = 1000, H = 620, PAD = 30;
+const RAD = Math.PI / 180;
 
+// Albers equal-area conic — the standard CONUS projection, so the country reads as itself
+// instead of a stretched rectangle. Standard parallels 29.5°/45.5°, centred on -96°.
+const P1 = 29.5 * RAD, P2 = 45.5 * RAD, LAT0 = 37.5 * RAD, LNG0 = -96;
+const N = 0.5 * (Math.sin(P1) + Math.sin(P2));
+const C = Math.cos(P1) ** 2 + 2 * N * Math.sin(P1);
+const RHO0 = Math.sqrt(C - 2 * N * Math.sin(LAT0)) / N;
+
+function albersRaw(lat, lng) {
+  const theta = N * ((lng - LNG0) * RAD);
+  const rho = Math.sqrt(C - 2 * N * Math.sin(lat * RAD)) / N;
+  return [rho * Math.sin(theta), RHO0 - rho * Math.cos(theta)];
+}
+
+// Fit the raw projection into the viewport: computed once from the state outlines so the
+// dots and the map share the exact same transform.
+let FIT = null;
+function fitFrom(bounds) {
+  const s = Math.min((W - 2 * PAD) / (bounds.maxx - bounds.minx),
+                     (H - 2 * PAD) / (bounds.maxy - bounds.miny));
+  const tx = (W - s * (bounds.maxx + bounds.minx)) / 2;
+  const ty = (H - s * (bounds.maxy + bounds.miny)) / 2;
+  FIT = { s, tx, ty };
+}
 function project(lat, lng) {
-  const x0 = B.lngMin, x1 = B.lngMax;
-  const nx = (lng - x0) / (x1 - x0);
-  const ny = (lat - B.latMin) / (B.latMax - B.latMin);
-  // width driven by longitude corrected for latitude convergence, centered
-  const spanX = (W - 2 * PAD);
-  const x = PAD + nx * spanX;
-  const y = PAD + (1 - ny) * (H - 2 * PAD);
-  return [x, y];
+  const [rx, ry] = albersRaw(lat, lng);
+  return [rx * FIT.s + FIT.tx, ry * FIT.s + FIT.ty];
+}
+
+function drawOutline(svg, states) {
+  // First pass: raw bounds across every ring, to compute FIT.
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  const polys = [];
+  for (const st of states) {
+    const geom = st.geometry;
+    const multi = geom.type === "MultiPolygon" ? geom.coordinates : [geom.coordinates];
+    for (const poly of multi) {
+      for (const ring of poly) {
+        const pts = ring.map(([lng, lat]) => albersRaw(lat, lng));
+        for (const [x, y] of pts) {
+          if (x < minx) minx = x; if (x > maxx) maxx = x;
+          if (y < miny) miny = y; if (y > maxy) maxy = y;
+        }
+        polys.push(pts);
+      }
+    }
+  }
+  fitFrom({ minx, miny, maxx, maxy });
+  // Second pass: emit scaled paths.
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("class", "states");
+  for (const pts of polys) {
+    const path = document.createElementNS(NS, "path");
+    let d = "";
+    pts.forEach(([x, y], i) => { d += (i ? "L" : "M") + (x * FIT.s + FIT.tx).toFixed(1) + " " + (y * FIT.s + FIT.ty).toFixed(1); });
+    path.setAttribute("d", d + "Z");
+    g.appendChild(path);
+  }
+  svg.appendChild(g);
 }
 
 async function main() {
+  const svg = document.getElementById("map");
+
+  // Outline first (so FIT exists and dots align to it), then the campuses.
+  let states = [];
+  try {
+    states = (await (await fetch("/static/us-states.json")).json()).states;
+    drawOutline(svg, states);
+  } catch (e) { /* no outline — fall back to fixed bounds below */ }
+  if (!FIT) fitFrom({ ...albersBoundsFallback() });
+
   let rows;
   try {
     const r = await fetch("/scan/campuses");
@@ -80,23 +137,20 @@ async function main() {
     return;
   }
 
-  const svg = document.getElementById("map");
   const counts = { disputed: 0, flagged: 0, verified: 0 };
-
-  // Draw verified first, disputed last, so the red sits on top and reads as the story.
-  const order = { verified: 0, flagged: 1, disputed: 2 };
+  const order = { verified: 0, flagged: 1, disputed: 2 };  // red drawn last, on top
   rows.sort((a, b) => order[a.verdict] - order[b.verdict]);
 
   for (const c of rows) {
     counts[c.verdict] = (counts[c.verdict] || 0) + 1;
     const [x, y] = project(c.lat, c.lng);
-    if (x < 0 || x > W || y < 0 || y > H) continue;
+    if (x < -20 || x > W + 20 || y < -20 || y > H + 20) continue;
     const dot = document.createElementNS(NS, "circle");
     dot.setAttribute("cx", x.toFixed(1));
     dot.setAttribute("cy", y.toFixed(1));
-    dot.setAttribute("r", (1.7 + Math.min(3, Math.log2((c.building_count || 1) + 1))).toFixed(1));
+    dot.setAttribute("r", (1.6 + Math.min(2.6, Math.log2((c.building_count || 1) + 1))).toFixed(1));
     dot.setAttribute("fill", VERDICT_COLOR[c.verdict] || "var(--ink-3)");
-    dot.setAttribute("fill-opacity", c.verdict === "verified" ? "0.5" : "0.85");
+    dot.setAttribute("fill-opacity", c.verdict === "verified" ? "0.55" : "0.9");
     dot.classList.add("mdot");
     dot.addEventListener("pointerenter", (e) => showTip(e, c));
     dot.addEventListener("pointerleave", hideTip);
@@ -110,6 +164,15 @@ async function main() {
     <div class="stat"><span class="stat-n">${counts.verified}</span><span class="stat-l">Verified · ${pct(counts.verified)}%</span></div>
     <div class="stat"><span class="stat-n">${counts.flagged}</span><span class="stat-l">Flagged · ${pct(counts.flagged)}%</span></div>
     <div class="stat"><span class="stat-n">${total}</span><span class="stat-l">Campuses screened</span></div>`;
+}
+
+function albersBoundsFallback() {
+  // If the outline fails to load, fit to the CONUS corners so dots still land sensibly.
+  const corners = [[49.4, -125], [49.4, -66.9], [24.5, -66.9], [24.5, -125]].map(([la, ln]) => albersRaw(la, ln));
+  return {
+    minx: Math.min(...corners.map(c => c[0])), maxx: Math.max(...corners.map(c => c[0])),
+    miny: Math.min(...corners.map(c => c[1])), maxy: Math.max(...corners.map(c => c[1])),
+  };
 }
 
 const tip = () => document.getElementById("tip");
