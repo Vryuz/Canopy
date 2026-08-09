@@ -65,7 +65,9 @@ const RHO0 = Math.sqrt(C - 2 * N * Math.sin(LAT0)) / N;
 function albersRaw(lat, lng) {
   const theta = N * ((lng - LNG0) * RAD);
   const rho = Math.sqrt(C - 2 * N * Math.sin(lat * RAD)) / N;
-  return [rho * Math.sin(theta), RHO0 - rho * Math.cos(theta)];
+  // y is negated vs the textbook conic: SVG's y-axis points down, so without the flip
+  // higher latitudes land lower on screen and the whole map renders upside down.
+  return [rho * Math.sin(theta), rho * Math.cos(theta) - RHO0];
 }
 
 // Fit the raw projection into the viewport: computed once from the state outlines so the
