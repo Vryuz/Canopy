@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 import sys
 from pathlib import Path
@@ -186,25 +187,32 @@ def scan(limit: int | None, concurrency: int, out: Path, top: int, resume: bool)
         f"({result.failed} failed)."
     )
 
-    finding = render_finding(result, top_n=top)
+    from src.scan import dedupe_campuses
+
+    campuses = dedupe_campuses(result.rows)
+    finding = render_finding(result, campuses, top_n=top)
     (out / "finding.md").write_text(finding, encoding="utf-8")
     (out / "scan.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
+    (out / "campuses.json").write_text(
+        json.dumps([c.model_dump() for c in campuses], indent=2), encoding="utf-8"
+    )
 
-    console.print(f"\n[bold]Top {min(top, result.screened)} most-stranded sites[/bold]")
-    ranked = result.ranked()[:top]
+    console.print(
+        f"[dim]{result.screened} buildings rolled up to {len(campuses)} campuses.[/dim]"
+    )
+    console.print(f"\n[bold]Top {min(top, len(campuses))} most-stranded campuses[/bold]")
     table = Table(show_header=True, header_style="bold", box=None, pad_edge=False)
     table.add_column("#", width=3, justify="right")
-    table.add_column("Site")
+    table.add_column("Campus")
+    table.add_column("Op", width=14)
+    table.add_column("Bldgs", width=5, justify="right")
     table.add_column("Verdict", width=10)
-    table.add_column("Phys", width=5, justify="right")
-    table.add_column("Permit", width=6, justify="right")
     table.add_column("Stranded", width=8, justify="right")
-    for i, r in enumerate(ranked, 1):
-        colour = "red" if r.verdict == "disputed" else "yellow" if r.verdict == "flagged" else "green"
-        perm = f"{r.permitting:.2f}" if r.permitting is not None else "—"
+    for i, c in enumerate(campuses[:top], 1):
+        colour = "red" if c.verdict == "disputed" else "yellow" if c.verdict == "flagged" else "green"
         table.add_row(
-            str(i), (r.name or "")[:40], Text(r.verdict.upper(), style=colour),
-            f"{r.physical_mean:.2f}", perm, Text(f"{r.stranded_viability:.2f}", style="bold"),
+            str(i), (c.name or "")[:34], (c.operator or "")[:14], str(c.building_count),
+            Text(c.verdict.upper(), style=colour), Text(f"{c.stranded_viability:.2f}", style="bold"),
         )
     console.print(table)
     console.print(f"\n[green]Finding written to {out / 'finding.md'}[/green]")

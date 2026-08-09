@@ -40,11 +40,14 @@ run and its findings can be referenced back later. Companion to `INTERNAL_REFERE
 ### Results
 
 - **1,824** found · **1,814** screened · **10** failed (transient errors, isolated).
-- Verdict split:
-  - **866 DISPUTED (48%)** — physically viable, inside an active moratorium's blast radius.
-  - **736 VERIFIED (41%)** — clear a first-pass screen.
-  - **212 FLAGGED (12%)** — a named risk to resolve early.
-- **2,156 attestations** written (one per actionable site; disputed + flagged).
+- **Building-level** verdict split: 866 DISPUTED (48%) · 736 VERIFIED · 212 FLAGGED.
+- **Campus-level** (buildings rolled up by operator + 4 km clustering → **1,154 campuses**):
+  - **500 DISPUTED (43%)** — physically viable, inside an active moratorium's blast radius.
+  - **541 VERIFIED (47%)** — clear a first-pass screen.
+  - **113 FLAGGED (10%)** — a named risk to resolve early.
+- The campus number is the honest headline; building counts over-state site totals because a
+  single campus is tagged as many rooftops in OSM (135 "Amazon Web Services" rows alone).
+- **2,156 attestations** written (one per actionable building; disputed + flagged).
 
 **Headline:** nearly half of America's mapped data centers sit on physically excellent land
 that is now inside the reach of an enacted local moratorium. The top of the stranded list is

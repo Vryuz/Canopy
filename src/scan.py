@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,6 +40,104 @@ class ScanRow(BaseModel):
     stranded_viability: float
     top_lever: str | None = None
     nearest_moratorium: str | None = None
+
+
+class Campus(BaseModel):
+    """One data-center campus, rolled up from the OSM buildings that make it up."""
+
+    name: str
+    operator: str
+    lat: float
+    lng: float
+    verdict: str
+    physical_mean: float
+    permitting: float | None
+    stranded_viability: float
+    top_lever: str | None = None
+    nearest_moratorium: str | None = None
+    building_count: int = 1
+
+
+# Brand canonicalisation. OSM tags the same operator a dozen ways ("Amazon Web Services",
+# "Amazon AWS PHL", "AWS"); a finding that lists them separately looks unserious.
+_ALIASES: dict[str, str] = {
+    "amazon": "Amazon", "aws": "Amazon",
+    "google": "Google", "microsoft": "Microsoft", "azure": "Microsoft",
+    "meta": "Meta", "facebook": "Meta",
+    "qts": "QTS", "digital realty": "Digital Realty", "stack": "STACK Infrastructure",
+    "equinix": "Equinix", "flexential": "Flexential", "switch": "Switch",
+    "coresite": "CoreSite", "cyxtera": "Cyxtera", "ntt": "NTT", "lumen": "Lumen",
+    "centurylink": "Lumen", "verizon": "Verizon", "apple": "Apple", "compass": "Compass",
+    "tierpoint": "TierPoint", "vantage": "Vantage", "iron mountain": "Iron Mountain",
+    "nautilus": "Nautilus", "blockfusion": "Blockfusion", "centersquare": "Centersquare",
+    "lexisnex": "LexisNexis", "quantum loophole": "Quantum Loophole", "edgeconnex": "EdgeConneX",
+    "aligned": "Aligned", "databank": "DataBank", "sabey": "Sabey", "t5 ": "T5",
+}
+
+_CAMPUS_RADIUS_KM = 4.0  # same operator within this of another building = one campus
+
+
+def _operator_key(name: str) -> str | None:
+    """Canonical operator, or None for an unnamed OSM feature (kept as its own singleton)."""
+    if not name or name.startswith(("way/", "node/", "relation/")):
+        return None
+    low = name.lower()
+    for sub, canon in _ALIASES.items():
+        if sub in low:
+            return canon
+    token = re.split(r"[\s,\-/]+", name.strip())[0]
+    return token[:24] or None
+
+
+def dedupe_campuses(rows: list[ScanRow], radius_km: float = _CAMPUS_RADIUS_KM) -> list[Campus]:
+    """Roll buildings up to campuses: group by operator, then greedily merge same-operator
+    buildings within `radius_km`. Unnamed features stay as singletons. The representative
+    keeps the cluster's worst-case (max stranded) row and its most specific name."""
+    from src.clients.moratoria import haversine_km
+
+    by_op: dict[str | None, list[ScanRow]] = {}
+    for r in rows:
+        by_op.setdefault(_operator_key(r.name), []).append(r)
+
+    campuses: list[Campus] = []
+    for op, members in by_op.items():
+        if op is None:
+            campuses.extend(_campus_from([r], None) for r in members)  # unnamed → singletons
+            continue
+        remaining = sorted(members, key=lambda r: r.stranded_viability, reverse=True)
+        while remaining:
+            seed = remaining.pop(0)
+            cluster = [seed]
+            rest: list[ScanRow] = []
+            for r in remaining:
+                if haversine_km(seed.lat, seed.lng, r.lat, r.lng) <= radius_km:
+                    cluster.append(r)
+                else:
+                    rest.append(r)
+            remaining = rest
+            campuses.append(_campus_from(cluster, op))
+
+    return sorted(campuses, key=lambda c: c.stranded_viability, reverse=True)
+
+
+def _campus_from(cluster: list[ScanRow], operator: str | None) -> Campus:
+    rep = max(cluster, key=lambda r: r.stranded_viability)  # worst-case representative
+    # Most specific label: the longest real name; a bare OSM id reads as "Unnamed".
+    named = [r.name for r in cluster if not r.name.startswith(("way/", "node/", "relation/"))]
+    label = max(named, key=len) if named else "Unnamed data center"
+    return Campus(
+        name=label,
+        operator=operator or "—",
+        lat=rep.lat,
+        lng=rep.lng,
+        verdict=rep.verdict,
+        physical_mean=rep.physical_mean,
+        permitting=rep.permitting,
+        stranded_viability=rep.stranded_viability,
+        top_lever=rep.top_lever,
+        nearest_moratorium=rep.nearest_moratorium,
+        building_count=len(cluster),
+    )
 
 
 class ScanResult(BaseModel):
@@ -197,23 +295,27 @@ def _write_attestation(screen: SiteScreen, out_dir: Path) -> None:
     (out_dir / f"{stem}.md").write_text(render_markdown(att), encoding="utf-8")
 
 
-def render_finding(result: ScanResult, top_n: int = 25) -> str:
-    """A publishable markdown finding — the blog-post-shaped output Mireye rewards."""
-    ranked = result.ranked()[:top_n]
-    disputed = [r for r in result.rows if r.verdict == "disputed"]
-    flagged = [r for r in result.rows if r.verdict == "flagged"]
-    verified = [r for r in result.rows if r.verdict == "verified"]
+def render_finding(result: ScanResult, campuses: list[Campus], top_n: int = 25) -> str:
+    """A publishable markdown finding — the blog-post-shaped output Mireye rewards.
+
+    Counts are campus-level (OSM buildings rolled up), so "866 disputed" means 866 distinct
+    sites, not 866 tagged rooftops."""
+    ranked = sorted(campuses, key=lambda c: c.stranded_viability, reverse=True)[:top_n]
+    disputed = [c for c in campuses if c.verdict == "disputed"]
+    flagged = [c for c in campuses if c.verdict == "flagged"]
+    verified = [c for c in campuses if c.verdict == "verified"]
 
     lines = [
         "# The US data centers most stranded by permitting risk",
         "",
-        f"_Screened {result.screened} of {result.total_found} OSM-mapped US data centers on "
-        f"{result.generated_at:%Y-%m-%d}. Physical viability from Mireye; permitting risk from "
-        "the Moratorium Nation inventory. Every value cited; method reproducible._",
+        f"_Screened {result.screened} of {result.total_found} OSM-mapped US data-center "
+        f"buildings on {result.generated_at:%Y-%m-%d}, rolled up to **{len(campuses)} campuses**. "
+        "Physical viability from Mireye; permitting risk from the Moratorium Nation inventory. "
+        "Every value cited; method reproducible._",
         "",
         "## What we found",
         "",
-        f"- **{len(disputed)}** sites are DISPUTED — physically viable but sitting inside the "
+        f"- **{len(disputed)}** campuses are DISPUTED — physically viable but sitting inside the "
         "blast radius of an active moratorium.",
         f"- **{len(flagged)}** are FLAGGED — a named risk to resolve early.",
         f"- **{len(verified)}** clear a first-pass screen clean.",
@@ -223,29 +325,31 @@ def render_finding(result: ScanResult, top_n: int = 25) -> str:
         "— exactly the parcels where a community-benefit package (grid flexibility, waste-heat "
         "reuse, water offsets) would unlock the most value.",
         "",
-        f"## Top {len(ranked)} most-stranded sites",
+        f"## Top {len(ranked)} most-stranded campuses",
         "",
-        "| # | Site | Verdict | Physical | Permitting | Stranded | Strongest path to yes |",
-        "|---|---|---|---|---|---|---|",
+        "| # | Campus | Operator | Bldgs | Verdict | Physical | Permitting | Stranded | Path to yes |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
-    for i, r in enumerate(ranked, 1):
-        perm = f"{r.permitting:.2f}" if r.permitting is not None else "—"
+    for i, c in enumerate(ranked, 1):
+        perm = f"{c.permitting:.2f}" if c.permitting is not None else "—"
         lines.append(
-            f"| {i} | {r.name} | {r.verdict.upper()} | {r.physical_mean:.2f} | {perm} | "
-            f"**{r.stranded_viability:.2f}** | {r.top_lever or '—'} |"
+            f"| {i} | {c.name} | {c.operator} | {c.building_count} | {c.verdict.upper()} | "
+            f"{c.physical_mean:.2f} | {perm} | **{c.stranded_viability:.2f}** | {c.top_lever or '—'} |"
         )
     lines += [
         "",
         "## Method",
         "",
-        f"1. Pull all US data centers tagged in OpenStreetMap ({result.total_found} found).",
+        f"1. Pull all US data centers tagged in OpenStreetMap ({result.total_found} buildings).",
         f"2. Screen each on {len(DC_FIELDS)} cited Mireye fields (terrain, power, hazard, "
         "externalities) plus nearby active moratoria.",
-        "3. Rank by stranded viability = physical mean − permitting score.",
-        "4. Every screened site emits a content-hashed attestation; nothing is asserted "
+        "3. Roll buildings up to campuses (operator + spatial clustering).",
+        "4. Rank by stranded viability = physical mean − permitting score.",
+        "5. Every screened site emits a content-hashed attestation; nothing is asserted "
         "without a citation and a re-checkable source.",
         "",
         "_Not construction advice. Proximity is not deliverability; a screen tells you where "
-        "to look, not what you'll find on the ground._",
+        "to look, not what you'll find on the ground. Campus rollup is operator + 4 km "
+        "clustering; a bare-branded cluster in one metro may span more than one physical site._",
     ]
     return "\n".join(lines)
