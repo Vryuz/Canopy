@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=15">
+<link rel="stylesheet" href="/static/style.css?v=16">
 </head>
 <body>
 
@@ -159,6 +159,8 @@ async function main() {
     svg.appendChild(dot);
   }
 
+  drawCityAnchors(svg);
+
   const total = rows.length;
   const pct = (n) => Math.round(n / total * 100);
   document.getElementById("stats").innerHTML = `
@@ -166,6 +168,32 @@ async function main() {
     <div class="stat"><span class="stat-n">${counts.verified}</span><span class="stat-l">Verified · ${pct(counts.verified)}%</span></div>
     <div class="stat"><span class="stat-n">${counts.flagged}</span><span class="stat-l">Flagged · ${pct(counts.flagged)}%</span></div>
     <div class="stat"><span class="stat-n">${total}</span><span class="stat-l">Campuses screened</span></div>`;
+}
+
+// A sparse set of metro anchors so the eye can place the scatter — the dots make sense
+// once you can see they cluster on Ashburn/NoVA, Dallas, Phoenix, the Bay, etc.
+const CITIES = [
+  ["Seattle", 47.61, -122.33], ["Bay Area", 37.60, -122.10], ["Los Angeles", 34.05, -118.24],
+  ["Phoenix", 33.45, -112.07], ["Dallas", 32.78, -96.80], ["Chicago", 41.88, -87.63],
+  ["Ashburn, VA", 39.04, -77.49], ["New York", 40.71, -74.01], ["Atlanta", 33.75, -84.39],
+  ["Miami", 25.77, -80.19], ["Denver", 39.74, -104.99], ["Omaha", 41.26, -95.94],
+];
+
+function drawCityAnchors(svg) {
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("class", "cities");
+  for (const [name, lat, lng] of CITIES) {
+    const [x, y] = project(lat, lng);
+    const tick = document.createElementNS(NS, "circle");
+    tick.setAttribute("cx", x.toFixed(1)); tick.setAttribute("cy", y.toFixed(1));
+    tick.setAttribute("r", "1.6"); tick.setAttribute("class", "city-tick");
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("x", (x + 5).toFixed(1)); label.setAttribute("y", (y + 3).toFixed(1));
+    label.setAttribute("class", "city-label");
+    label.textContent = name;
+    g.appendChild(tick); g.appendChild(label);
+  }
+  svg.appendChild(g);  // above the outline, below the campus dots drawn earlier? no — after
 }
 
 function albersBoundsFallback() {
@@ -184,7 +212,8 @@ function showTip(e, c) {
   t.innerHTML = `<b>${esc(c.name)}</b> <span class="dim">${esc(c.operator || "")}</span><br>
     <span class="badge ${esc(c.verdict)}">${esc(c.verdict)}</span>
     <span class="mono">stranded ${c.stranded_viability.toFixed(2)} · phys ${c.physical_mean.toFixed(2)} · permit ${perm}</span><br>
-    <span class="dim mono">${c.building_count} building${c.building_count === 1 ? "" : "s"}${c.top_lever ? " · " + esc(c.top_lever) : ""}</span>`;
+    <span class="dim mono">${c.building_count} building${c.building_count === 1 ? "" : "s"}${c.top_lever ? " · " + esc(c.top_lever) : ""}</span><br>
+    <span class="dim mono">${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}</span>`;
   t.hidden = false;
   const rect = document.getElementById("map").getBoundingClientRect();
   const fx = e.clientX - rect.left, fy = e.clientY - rect.top;

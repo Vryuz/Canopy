@@ -1,5 +1,5 @@
 /*
- * Verification Agent — technical editorial, light.
+ * Canopy — technical editorial, light.
  *
  * Direction taken from the biomedical/LinkLabs reference: a near-monochrome warm-grey
  * paper, a faint drafting grid holding the composition, halftone-dithered texture
@@ -409,6 +409,13 @@ a:hover { border-bottom-color: var(--ink); }
 .states path { fill: var(--surface); stroke: var(--ink-4); stroke-width: 0.6; stroke-linejoin: round; }
 .mdot { cursor: crosshair; transition: fill-opacity 120ms; }
 .mdot:hover { fill-opacity: 1; }
+
+/* Metro anchors — muted, so they orient without competing with the campus dots. */
+.cities .city-tick { fill: none; stroke: var(--ink-3); stroke-width: 1; }
+.cities .city-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.04em;
+  fill: var(--ink-3); paint-order: stroke; stroke: var(--surface); stroke-width: 2.5px;
+}
 
 .map-legend { display: flex; flex-wrap: wrap; gap: 1.2rem; padding: 0.8rem 1.1rem; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 0.7rem; color: var(--ink-2); align-items: center; }
 .map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; }
