@@ -8,6 +8,14 @@ Built for the Mireye challenge. Mireye supplies the site facts; FEMA's claims hi
 
 One domain-free engine, three verticals: **flood disclosure**, **data-center siting**, and **carbon-credit claims**. Each supplies which fields to pull, how to read a claim, and what counts as a contradiction — the engine turns that into a cited, tamper-evident attestation.
 
+Surfaces:
+
+- **`/`** — the demo. Three vertical tabs plus a **Portfolio** batch tab that runs a whole book in parallel.
+- **`/map`** — the national scan: 1,154 US data-center campuses, half of them stranded.
+- **`/a/{id}`** — a shareable, self-verifying attestation page for any verdict.
+
+Live-demo script and setup: [`docs/DEMO_RUNBOOK.md`](docs/DEMO_RUNBOOK.md).
+
 ---
 
 ## What it does

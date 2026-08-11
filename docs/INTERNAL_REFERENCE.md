@@ -643,3 +643,38 @@ on an untouched record. Two cross-language divergences from Python's `json.dumps
 Fix: embed the *exact* canonical string the server hashed and sha256 **that** in the browser —
 identical bytes can't drift, yet a real body edit still breaks the match (stored hash no longer
 matches the string). Both branches verified live (✓ Intact and ✗ Tampered). Tests: 55 (was 52).
+
+---
+
+## 16. Portfolio batch verification + demo runbook + Orchestra note (2026-08-10)
+
+Autonomous session — kicked off after the map polish, before the submission deadline.
+
+### 16.1 Portfolio (batch) verification
+A fourth tab on the demo: paste `vertical | location | claim` lines, and Canopy fans them
+out through the existing `/verify/*` and `/screen/*` endpoints with bounded client-side
+parallelism (default 4 workers). Results stream into a live table with progress meter, per-
+row verdict badges, tinted rows by verdict, and an attestation link on every completed row.
+
+Deliberately client-side: the existing endpoints already do everything a batch call would,
+and adding a new server endpoint would just duplicate that logic (plus add its own tests,
+its own error handling, its own timeouts). One pool of workers reading `/verify/*` in the
+browser is smaller, safer, and equally observable. Verified live end-to-end (3-row batch,
+Ashburn/Denver/Galveston, cached-warm — all three rows landed with attestation links).
+
+### 16.2 Demo runbook (`docs/DEMO_RUNBOOK.md`)
+Scripted four-beat live demo (macro map → live vertical → attestation tamper → batch
+portfolio), ~2 minutes total. Includes the two-command cache warm-up, per-beat talking
+points, and a contingency table for common failure modes.
+
+### 16.3 Orchestra fit note (`docs/ORCHESTRA_SUBMISSION.md`)
+Written after research on Untrivial's Agent Orchestrator hackathon (Aug 12–13). AO is a
+desktop app supervising parallel coding agents via git worktrees — a *dev workspace*, not a
+protocol to integrate against. Orchestra's judging is "ship something real, no theme, no
+limits," so Canopy submits as-is; the note explains the fit (three verticals as parallel-
+agent work, `src/scan.py`'s checkpoint/resume as a literal instance of nick_realm's
+"stateful continuity for stateless MCP" thesis) and is honest that the project pre-dates
+the hackathon announcement.
+
+Test count: **55** (unchanged; the batch tab is pure JS orchestration over the tested
+endpoints, so no new tests are meaningful).

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=16">
+<link rel="stylesheet" href="/static/style.css?v=17">
 </head>
 <body>
 
@@ -45,6 +45,7 @@
     <button class="tab active" data-panel="flood"><span class="idx">01</span>Flood claim</button>
     <button class="tab" data-panel="carbon"><span class="idx">02</span>Carbon project</button>
     <button class="tab" data-panel="dc"><span class="idx">03</span>Data center site</button>
+    <button class="tab" data-panel="portfolio"><span class="idx">04</span>Portfolio</button>
   </nav>
 
   <main>
@@ -119,6 +120,35 @@
         <button class="ex-dc" data-loc="41.2619, -95.8608">Council Bluffs, IA</button>
       </div>
       <div id="dc-out" class="out"></div>
+    </section>
+
+    <section id="portfolio" class="panel">
+      <div class="panel-intro reveal">
+        <span class="label">Batch verification · client-side parallelism</span>
+        <h2>Screen your whole book</h2>
+        <p><span class="buyer">Buyer: lenders, VVBs, developer siting teams.</span> Paste a portfolio — one row per line, <span class="mono">vertical | location | claim</span> — and Canopy verifies each in parallel, streaming results as they land. Every row lands with a re-verifiable attestation link.</p>
+      </div>
+      <form id="portfolio-form">
+        <label><span>Portfolio &nbsp;<span class="dim">(vertical | location | claim, one per line)</span></span>
+          <textarea name="rows" rows="6" spellcheck="false">flood | 1719 Broadway Ave J, Galveston, TX | not in a flood zone
+flood | 1600 Sherman St, Denver, CO | not in a flood zone
+carbon | 47.8, -123.5 | avoided deforestation, protecting intact forest
+carbon | 33.4484, -112.074 | reforestation project established since 2021
+dc | 39.0438, -77.4874 | screen this site
+dc | 33.4484, -112.074 | screen this site</textarea>
+        </label>
+        <label class="portfolio-controls"><span>Parallelism</span>
+          <select name="concurrency"><option value="2">2</option><option value="4" selected>4</option><option value="6">6</option><option value="8">8</option></select>
+        </label>
+        <button type="submit">Verify portfolio</button>
+      </form>
+      <div class="examples">
+        <span>Or</span>
+        <button type="button" id="portfolio-load-sample">Load Ashburn hedge-fund sample</button>
+        <button type="button" id="portfolio-clear">Clear</button>
+      </div>
+      <div id="portfolio-progress" class="portfolio-progress" hidden></div>
+      <div id="portfolio-out" class="out"></div>
     </section>
   </main>
 
@@ -378,6 +408,166 @@ $("#dc-form").onsubmit = async (e) => {
       ${shareLink(s.attestation_id)}
     </div>`;
   } catch (err) { out.innerHTML = `<div class="error">${esc(err.message)}</div>`; }
+};
+
+/* --- portfolio (batch) verification ------------------------------------
+   Parses a textarea of `vertical | location | claim` lines, dispatches them
+   through the existing single-address endpoints with a bounded concurrency,
+   and streams results into an ordered table as they land. All the pieces
+   already exist — this just orchestrates them client-side, so there is no
+   new server surface to test or attack. Every row keeps its own attestation
+   link because the underlying endpoints persist as they go.
+------------------------------------------------------------------------ */
+
+const PORTFOLIO_ENDPOINT = { flood: "/verify/flood", carbon: "/verify/carbon", dc: "/screen/datacenter" };
+
+function parsePortfolio(text) {
+  const rows = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const parts = line.split("|").map((s) => s.trim());
+    if (parts.length < 2) continue;
+    const vertical = parts[0].toLowerCase();
+    if (!PORTFOLIO_ENDPOINT[vertical]) continue;
+    const location = parts[1];
+    const claim = parts[2] || (vertical === "dc" ? "screen this site" : "");
+    rows.push({ vertical, location, claim });
+  }
+  return rows;
+}
+
+async function runOneRow(row) {
+  const endpoint = PORTFOLIO_ENDPOINT[row.vertical];
+  const body = row.vertical === "dc"
+    ? { location: row.location, radius_km: 80 }
+    : { location: row.location, claim: row.claim };
+  const res = await fetch(endpoint, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+  return res.json();
+}
+
+function summariseRow(vertical, result) {
+  const v = result.verdict || {};
+  if (vertical === "dc") {
+    const lever = result.path_to_yes?.top_lever;
+    return {
+      kind: (v.kind || "").toLowerCase(),
+      headline: v.reasoning || "",
+      detail: lever ? `Top lever: ${lever.name} (${lever.strength.toFixed(2)})` : "",
+      loc: result.location,
+    };
+  }
+  const disc = (result.discrepancies || []).find((d) => d.severity === "critical") || result.discrepancies?.[0];
+  return {
+    kind: (v.kind || "").toLowerCase(),
+    headline: v.reasoning || "",
+    detail: disc ? `${disc.field}: claimed ${disc.claimed} · observed ${disc.observed}` : "",
+    loc: result.location || {},
+  };
+}
+
+async function runPortfolio(rows, concurrency, out, progress) {
+  const table = document.createElement("table");
+  table.className = "portfolio-table";
+  table.innerHTML = `<thead><tr><th>#</th><th>Vertical</th><th>Location</th><th>Claim</th><th>Verdict</th><th>Finding</th><th>Attestation</th></tr></thead><tbody></tbody>`;
+  out.innerHTML = "";
+  out.appendChild(table);
+  const tbody = table.querySelector("tbody");
+  const rowEls = rows.map((row, i) => {
+    const tr = document.createElement("tr");
+    tr.className = "prow status-pending";
+    tr.innerHTML = `<td class="mono">${i + 1}</td>
+      <td><span class="pv pv-${esc(row.vertical)}">${esc(row.vertical)}</span></td>
+      <td class="mono">${esc(row.location)}</td>
+      <td class="prow-claim">${esc(row.claim || "—")}</td>
+      <td class="prow-verdict"><span class="dim mono">queued…</span></td>
+      <td class="prow-finding dim">—</td>
+      <td class="prow-att dim">—</td>`;
+    tbody.appendChild(tr);
+    return tr;
+  });
+
+  let done = 0, disputed = 0, verified = 0, flagged = 0, errored = 0;
+  const setProgress = () => {
+    progress.hidden = false;
+    progress.innerHTML = `
+      <div class="pmeter"><div class="pmeter-fill" style="width:${(done / rows.length * 100).toFixed(1)}%"></div></div>
+      <div class="pcounts">
+        <span><b>${done}</b>/${rows.length} done</span>
+        <span class="accent">${disputed} disputed</span>
+        <span>${verified} verified</span>
+        <span>${flagged} flagged</span>
+        ${errored ? `<span class="dim">${errored} errored</span>` : ""}
+      </div>`;
+  };
+  setProgress();
+
+  // Bounded parallelism: a simple pool of `concurrency` workers pulling from a shared index.
+  let next = 0;
+  async function worker() {
+    while (true) {
+      const i = next++;
+      if (i >= rows.length) return;
+      const tr = rowEls[i], row = rows[i];
+      tr.classList.remove("status-pending"); tr.classList.add("status-running");
+      tr.querySelector(".prow-verdict").innerHTML = `<span class="dim mono">running…</span>`;
+      try {
+        const result = await runOneRow(row);
+        const s = summariseRow(row.vertical, result);
+        tr.classList.remove("status-running"); tr.classList.add(`status-${s.kind}`);
+        tr.querySelector(".prow-verdict").innerHTML = `<span class="badge ${esc(s.kind)}">${esc(s.kind)}</span>`;
+        tr.querySelector(".prow-finding").innerHTML = `<b>${esc(s.headline)}</b>${s.detail ? `<div class="dim">${esc(s.detail)}</div>` : ""}`;
+        const attId = result.attestation_id;
+        tr.querySelector(".prow-att").innerHTML = attId
+          ? `<a href="/a/${esc(attId)}" target="_blank" rel="noopener" class="mono">/a/${esc(attId)}</a>`
+          : `<span class="dim">—</span>`;
+        if (s.kind === "disputed") disputed++;
+        else if (s.kind === "verified") verified++;
+        else if (s.kind === "flagged") flagged++;
+      } catch (err) {
+        tr.classList.remove("status-running"); tr.classList.add("status-errored");
+        tr.querySelector(".prow-verdict").innerHTML = `<span class="dim mono">error</span>`;
+        tr.querySelector(".prow-finding").innerHTML = `<span class="error-inline">${esc(err.message)}</span>`;
+        errored++;
+      }
+      done++;
+      setProgress();
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, rows.length) }, worker));
+}
+
+$("#portfolio-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  const rows = parsePortfolio(f.get("rows") || "");
+  const out = $("#portfolio-out"), progress = $("#portfolio-progress");
+  if (rows.length === 0) { out.innerHTML = `<div class="error">No valid rows. Use: <span class="mono">vertical | location | claim</span></div>`; return; }
+  const concurrency = Number(f.get("concurrency")) || 4;
+  await runPortfolio(rows, concurrency, out, progress);
+};
+
+$("#portfolio-load-sample").onclick = () => {
+  $("#portfolio-form textarea").value =
+    `# Hedge fund's insurance-underwriting sample — check every disclosure that came in this week\n` +
+    `flood | 1719 Broadway Ave J, Galveston, TX | not in a flood zone\n` +
+    `flood | 350 5th Ave, New York, NY | Zone X\n` +
+    `flood | 1600 Sherman St, Denver, CO | not in a flood zone\n` +
+    `flood | 100 Ocean Blvd, Miami Beach, FL | not in a flood zone\n` +
+    `carbon | 47.8, -123.5 | avoided deforestation, protecting intact forest\n` +
+    `carbon | 47.8, -123.5 | reforestation project, new trees planted since 2021\n` +
+    `carbon | 33.4484, -112.074 | reforestation project established since 2021\n` +
+    `dc | 39.0438, -77.4874 | Ashburn candidate\n` +
+    `dc | 39.9612, -82.9988 | Columbus candidate\n` +
+    `dc | 41.2619, -95.8608 | Council Bluffs candidate`;
+};
+$("#portfolio-clear").onclick = () => {
+  $("#portfolio-form textarea").value = "";
+  $("#portfolio-out").innerHTML = ""; $("#portfolio-progress").hidden = true;
 };
 </script>
 </body>
