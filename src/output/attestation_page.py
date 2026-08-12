@@ -19,6 +19,48 @@ _VERDICT_CLASS = {
     "inconclusive": "inconclusive",
 }
 
+_KIND_LABEL = {
+    "flood_verification": "Flood verification",
+    "carbon_verification": "Carbon verification",
+    "datacenter_screen": "Data-center screen",
+}
+
+
+def _kind_label(att: Attestation) -> str:
+    return _KIND_LABEL.get(att.kind, "Verification")
+
+
+def _truncate(text: str, limit: int) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
+
+def page_meta(att: Attestation) -> tuple[str, str]:
+    """(title, description) for the page's <head> — Open Graph / Twitter preview text.
+
+    Kept here (not in the server) so the wording stays with the rest of the page rendering.
+    Degrades gracefully: a missing reasoning yields a sensible generic description rather
+    than the string "None"."""
+    kind = str(att.body.get("verdict", {}).get("kind", "")).upper() or "CHECKED"
+    reasoning = str(att.body.get("verdict", {}).get("reasoning", "") or "").strip()
+    title = f"Canopy — {_kind_label(att)} — {kind}"
+    description = _truncate(reasoning, 160) if reasoning else f"A cited, tamper-evident verification of {att.subject}."
+    return title, description
+
+
+def _tweet_text(att: Attestation) -> str:
+    """The dynamic (verdict-aware) half of the share intent. The page URL is appended in the
+    browser, since only the browser knows the real host."""
+    kind = str(att.body.get("verdict", {}).get("kind", "")).upper()
+    reasoning = str(att.body.get("verdict", {}).get("reasoning", "") or "").strip()
+    lead = {
+        "DISPUTED": f"Canopy flagged a discrepancy: {att.subject}",
+        "VERIFIED": f"Canopy verified: {att.subject}",
+        "FLAGGED": f"Canopy flagged a risk: {att.subject}",
+    }.get(kind, f"Canopy checked: {att.subject}")
+    text = f"{lead} — {reasoning}" if reasoning else lead
+    return _truncate(text, 200)
+
 
 def render_page(att: Attestation, att_id: str) -> str:
     body = att.body
@@ -45,13 +87,16 @@ def render_page(att: Attestation, att_id: str) -> str:
 </header>
 <div class="wrap att">""")
 
-    kind_label = "Flood verification" if att.kind == "flood_verification" else "Data-center screen"
     parts.append(f"""<div class="att-head">
-    <span class="label">{escape(kind_label)}</span>
+    <span class="label">{escape(_kind_label(att))}</span>
     <h1 class="display">{escape(att.subject)}</h1>
     <div class="verdict"><span class="badge {vclass}">{escape(kind.upper())}</span>
       <span class="conf">confidence · {escape(str(verdict.get('confidence','')))}</span></div>
     <p class="reason">{escape(str(verdict.get('reasoning','')))}</p>
+    <div class="att-share">
+      <button type="button" id="copy-link" class="cta">Copy link</button>
+      <a id="share-x" class="att-share-x" target="_blank" rel="noopener">Share on X →</a>
+    </div>
   </div>""")
 
     # Integrity panel — re-hashed client-side below.
@@ -146,6 +191,25 @@ def render_page(att: Attestation, att_id: str) -> str:
   v.textContent = ok ? '✓ Intact — recomputed hash matches the issued hash' : '✗ TAMPERED — hash mismatch';
   v.className = 'integrity-verdict ' + (ok ? 'intact' : 'tampered');
   document.getElementById('integrity').classList.add(ok ? 'ok' : 'bad');
+}})();
+</script>""")
+
+    # Share wiring. Tweet text is server-computed (verdict-aware); the URL is the real page,
+    # which only the browser knows, so the intent URL is assembled here from location.href.
+    tweet_literal = json.dumps(_tweet_text(att))
+    parts.append(f"""<script>
+(() => {{
+  const url = window.location.href;
+  const x = document.getElementById('share-x');
+  if (x) x.href = 'https://twitter.com/intent/tweet?text='
+    + encodeURIComponent({tweet_literal}) + '&url=' + encodeURIComponent(url);
+  const copy = document.getElementById('copy-link');
+  if (copy) copy.addEventListener('click', async () => {{
+    try {{ await navigator.clipboard.writeText(url); }} catch (e) {{ /* clipboard blocked */ }}
+    const original = copy.textContent;
+    copy.textContent = 'Copied ✓';
+    setTimeout(() => {{ copy.textContent = original; }}, 1500);
+  }});
 }})();
 </script>""")
     return "\n".join(parts)

@@ -673,6 +673,60 @@ def test_attestation_page_renders_and_reports_verdict():
     assert "crypto.subtle.digest" in html    # self-verifying script present
 
 
+def _disputed_att():
+    from src.models import Coordinate, Verdict, VerdictKind, VerificationMemo, Claim
+    from src.output.attestation import attest_memo
+
+    memo = VerificationMemo(
+        claim=Claim(text="not in a flood zone", subject="fema_flood_zone"),
+        location=Coordinate(lat=29.3, lng=-94.8),
+        verdict=Verdict(kind=VerdictKind.DISPUTED, confidence=Confidence.HIGH,
+                        reasoning="FEMA maps this as Zone AE — a Special Flood Hazard Area."),
+    )
+    return attest_memo(memo)
+
+
+def test_page_meta_carries_verdict_and_truncates():
+    from src.output.attestation_page import page_meta
+
+    title, description = page_meta(_disputed_att())
+    assert "DISPUTED" in title and "Canopy" in title
+    assert len(description) <= 160
+    assert "Zone AE" in description
+
+
+def test_page_meta_degrades_without_reasoning():
+    from src.models import Coordinate, Verdict, VerdictKind, VerificationMemo, Claim
+    from src.output.attestation import attest_memo
+    from src.output.attestation_page import page_meta
+
+    memo = VerificationMemo(
+        claim=Claim(text="x", subject="fema_flood_zone"),
+        location=Coordinate(lat=1.0, lng=2.0),
+        verdict=Verdict(kind=VerdictKind.VERIFIED, confidence=Confidence.HIGH, reasoning=""),
+    )
+    _, description = page_meta(attest_memo(memo))
+    assert "None" not in description and description  # no crash, no literal "None"
+
+
+def test_tweet_text_is_verdict_aware_and_bounded():
+    from src.output.attestation_page import _tweet_text
+
+    text = _tweet_text(_disputed_att())
+    assert text.startswith("Canopy flagged a discrepancy")
+    assert len(text) <= 200
+
+
+def test_attestation_page_has_share_controls():
+    from src.output.attestation_page import render_page
+
+    att = _disputed_att()
+    html = render_page(att, att.content_hash[:12])
+    assert 'id="copy-link"' in html
+    assert "twitter.com/intent/tweet" in html
+    assert "navigator.clipboard.writeText" in html
+
+
 def test_attestation_hash_is_stable_across_runs():
     from src.models import Coordinate, Verdict, VerdictKind, VerificationMemo, Claim
     from src.output.attestation import attest_memo

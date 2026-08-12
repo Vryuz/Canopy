@@ -487,6 +487,15 @@ a:hover { border-bottom-color: var(--ink); }
 .pv-dc { background: var(--tint-dc); }
 .error-inline { color: var(--accent); font-family: var(--mono); font-size: 0.75rem; }
 
+/* --- attestation share row --- */
+.att-share { display: flex; align-items: center; gap: 0.8rem; margin-top: 1.1rem; }
+.att-share .cta { font-size: 0.8rem; padding: 0.5rem 1rem; }
+.att-share-x {
+  font-family: var(--mono); font-size: 0.78rem; color: var(--ink-2);
+  text-decoration: none; border-bottom: 1px solid var(--ink-4);
+}
+.att-share-x:hover { color: var(--ink); border-bottom-color: var(--ink); }
+
 /* --- map guided tour --- */
 .map-head #tour-start { margin-top: 1rem; font-size: 0.8rem; padding: 0.5rem 1rem; }
 .tour-pins .tour-pin { fill: var(--surface); stroke: var(--ink); stroke-width: 2; }

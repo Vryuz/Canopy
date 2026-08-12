@@ -129,17 +129,33 @@ def attestation_json(att_id: str) -> JSONResponse:
 @app.get("/a/{att_id}", response_class=HTMLResponse)
 def attestation_html(att_id: str) -> HTMLResponse:
     """A shareable, self-verifying attestation page."""
+    from html import escape
+
+    from src.output.attestation_page import page_meta
+
     att = store.load(att_id)
     if att is None:
         raise HTTPException(status_code=404, detail="attestation not found")
-    return HTMLResponse(_PAGE_SHELL.format(body=render_page(att, att_id)))
+    title, description = page_meta(att)
+    return HTMLResponse(_PAGE_SHELL.format(
+        body=render_page(att, att_id),
+        title=escape(title, quote=True),
+        description=escape(description, quote=True),
+    ))
 
 
 # The attestation page reuses the demo's stylesheet; this shell wraps the rendered body
-# with the same <head> the index uses so the Canopy styling applies.
+# with the same <head> the index uses so the Canopy styling applies. The OG/Twitter tags
+# give a shared /a/{id} link a rich preview in Slack, iMessage, and X.
 _PAGE_SHELL = """<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Canopy Attestation</title>
+<title>{title}</title>
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{description}">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{title}">
+<meta name="twitter:description" content="{description}">
 <link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
