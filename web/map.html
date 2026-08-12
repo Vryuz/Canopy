@@ -29,6 +29,7 @@
     <p class="lede">Every OSM-mapped US data center, screened on Mireye ground truth and cross-checked
     against active local moratoria. <b class="accent">Red</b> is a physically viable campus sitting inside
     an enacted moratorium's reach; <b>ink</b> clears a first-pass screen. Hover any dot.</p>
+    <button type="button" id="tour-start" class="cta">▶ Guided tour</button>
   </div>
 
   <div class="map-stats" id="stats"></div>
@@ -42,6 +43,16 @@
       <span class="dim">dot size = buildings on the campus</span>
     </div>
     <div id="tip" class="map-tip" hidden></div>
+    <div id="tour-panel" class="tour-panel" hidden aria-live="polite">
+      <div class="tour-head"><span class="tour-num" id="tour-num"></span><b id="tour-title"></b>
+        <button id="tour-close" class="tour-close" aria-label="Close tour">✕</button></div>
+      <p class="tour-body" id="tour-body"></p>
+      <div class="tour-nav">
+        <button id="tour-prev" class="tour-btn">← Prev</button>
+        <span id="tour-count" class="dim mono"></span>
+        <button id="tour-next" class="tour-btn">Next →</button>
+      </div>
+    </div>
   </figure>
 
   <p class="foot-note dim">Albers equal-area conic (CONUS); state outlines from US Census cartographic
@@ -160,6 +171,7 @@ async function main() {
   }
 
   drawCityAnchors(svg);
+  initTour(svg);
 
   const total = rows.length;
   const pct = (n) => Math.round(n / total * 100);
@@ -194,6 +206,83 @@ function drawCityAnchors(svg) {
     g.appendChild(tick); g.appendChild(label);
   }
   svg.appendChild(g);  // above the outline, below the campus dots drawn earlier? no — after
+}
+
+// --- guided story tour -------------------------------------------------------
+// Four narrator pins over the scatter, each with the finding's story for that market.
+// Same coordinates as the demo's data-center examples, so the site stays consistent.
+const TOUR = [
+  { n: 1, name: "Ashburn, VA", lat: 39.0438, lng: -77.4874, verdict: "disputed",
+    body: "Data-center capital of the world — flawless on every engineering axis, contested on the two that never appear on a site plan: an ozone nonattainment area and five active county moratoria within 80 km." },
+  { n: 2, name: "Columbus, OH", lat: 39.9612, lng: -82.9988, verdict: "disputed",
+    body: "The Tier-2 market Mireye's own blog recommends fleeing TO — and it scores the worst permitting risk in the sample, with 9 active moratoria within 80 km. The escape hatch is more restricted than the market it escapes." },
+  { n: 3, name: "Phoenix, AZ", lat: 33.4484, lng: -112.074, verdict: "verified",
+    body: "Inverts the story: zero moratoria, a clean verdict — but the lowest externalities score in the set. The risk here is water and heat, not politics." },
+  { n: 4, name: "Council Bluffs, IA", lat: 41.2619, lng: -95.8608, verdict: "flagged",
+    body: "Google/Meta alley. Strong physicals, but a nearby moratorium keeps it honest — a named risk to resolve early, not a no." },
+];
+
+let tourPins = [], tourIdx = -1, tourSvg = null;
+
+function initTour(svg) {
+  tourSvg = svg;
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("class", "tour-pins");
+  tourPins = TOUR.map((stop, i) => {
+    const [x, y] = project(stop.lat, stop.lng);
+    const ring = document.createElementNS(NS, "circle");
+    ring.setAttribute("cx", x.toFixed(1)); ring.setAttribute("cy", y.toFixed(1));
+    ring.setAttribute("r", "10"); ring.setAttribute("class", "tour-ring"); ring.setAttribute("hidden", "");
+    const pin = document.createElementNS(NS, "circle");
+    pin.setAttribute("cx", x.toFixed(1)); pin.setAttribute("cy", y.toFixed(1));
+    pin.setAttribute("r", "7"); pin.setAttribute("class", "tour-pin");
+    pin.style.cursor = "pointer";
+    pin.addEventListener("click", () => gotoStop(i));
+    const label = document.createElementNS(NS, "text");
+    label.setAttribute("x", x.toFixed(1)); label.setAttribute("y", (y + 3).toFixed(1));
+    label.setAttribute("class", "tour-pin-num"); label.textContent = String(stop.n);
+    g.append(ring, pin, label);
+    return { ring, pin, label };
+  });
+  svg.appendChild(g);
+
+  document.getElementById("tour-start").onclick = () => gotoStop(0);
+  document.getElementById("tour-close").onclick = endTour;
+  document.getElementById("tour-prev").onclick = () => gotoStop(Math.max(0, tourIdx - 1));
+  document.getElementById("tour-next").onclick = () => gotoStop(Math.min(TOUR.length - 1, tourIdx + 1));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") return endTour();
+    const digit = Number(e.key);
+    if (digit >= 1 && digit <= TOUR.length) gotoStop(digit - 1);
+    else if (tourIdx >= 0 && e.key === "ArrowRight") gotoStop(Math.min(TOUR.length - 1, tourIdx + 1));
+    else if (tourIdx >= 0 && e.key === "ArrowLeft") gotoStop(Math.max(0, tourIdx - 1));
+  });
+}
+
+function gotoStop(i) {
+  tourIdx = i;
+  const stop = TOUR[i];
+  tourSvg.classList.add("touring");  // dims the campus dots via CSS
+  tourPins.forEach((p, j) => {
+    p.pin.classList.toggle("focused", j === i);
+    if (j === i) p.ring.removeAttribute("hidden"); else p.ring.setAttribute("hidden", "");
+  });
+  const panel = document.getElementById("tour-panel");
+  panel.hidden = false;
+  document.getElementById("tour-num").textContent = stop.n;
+  document.getElementById("tour-num").className = "tour-num v-" + stop.verdict;
+  document.getElementById("tour-title").textContent = stop.name + " · " + stop.verdict.toUpperCase();
+  document.getElementById("tour-body").textContent = stop.body;
+  document.getElementById("tour-count").textContent = `${i + 1} / ${TOUR.length}`;
+  document.getElementById("tour-prev").disabled = i === 0;
+  document.getElementById("tour-next").disabled = i === TOUR.length - 1;
+}
+
+function endTour() {
+  tourIdx = -1;
+  if (tourSvg) tourSvg.classList.remove("touring");
+  tourPins.forEach((p) => { p.pin.classList.remove("focused"); p.ring.setAttribute("hidden", ""); });
+  document.getElementById("tour-panel").hidden = true;
 }
 
 function albersBoundsFallback() {
