@@ -1,5 +1,11 @@
 # AO session prompts — paste-ready
 
+> **STATUS: superseded.** These three features were built directly on `main` in a normal
+> Claude Code session (commits `795c0e0` resume-scan UI, `4a9c0da` map tour, `77d5d54`
+> attestation share), **not** in AO — the AO plan was dropped. This file is kept as a record
+> and as ready briefs in case any of them is ever rebuilt/extended inside AO for provenance.
+> See `ORCHESTRA_SUBMISSION.md` for the honest current state.
+
 Three self-contained briefs for three parallel AO sessions (each = its own git worktree,
 its own Claude Code instance, zero shared memory with this conversation). Written so a
 cold-start agent has everything it needs without asking you anything.

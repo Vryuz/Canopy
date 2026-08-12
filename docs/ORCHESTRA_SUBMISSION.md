@@ -54,25 +54,45 @@ That's not a coincidence — it's what a real long-running agentic workflow need
 | "Is it trustworthy?" | `/a/{id}` — tamper it live; the page catches it |
 | "Would a real user run this at scale?" | `/`, **Portfolio** tab — batch verification over a portfolio, streaming |
 | "Where's the parallel-agent story?" | The three verticals, all independent, all on one engine (`src/agent.py`). And the scan checkpointing. |
+| "Show me the stateful-continuity thesis" | `/scan/resume-ui` — kill the scan, click Resume, watch the checkpoint grow five real sites at a time. |
 
-## Honest notes
+## The stateful-continuity feature (built)
 
-- We started building before Orchestra was announced, and the git history shows that. So
-  we're submitting the *artifact*, not claiming AO was the workspace we used.
-- No changes needed to submit — the project stands on its own for both Mireye and Orchestra.
-- If the hackathon judges care specifically about AO-as-workspace-provenance, we won't win.
-  If they judge on the shipped artifact, we're competitive.
+The one thing that makes the "save-games for agents" thesis literal is now built:
+**`/scan/resume-ui`**. It runs `run_scan(...)` against a throwaway demo checkpoint five real
+sites at a time, so an audience can watch the state handle grow — the same mechanism that lets
+the real 1,824-site scan survive an interruption and resume with zero re-billed work. This is
+the closest thing in the project to AO's own pitch, and it's clickable.
+
+Two supporting features shipped alongside it: a guided **story tour** on `/map` (the finding,
+narrated) and **shareable attestation links** with OG previews + Copy/Share (the trust surface
+made portable).
+
+## Honest notes — READ THIS
+
+- **We did not use AO as our workspace.** The plan to build the final feature pass inside AO
+  (three parallel sessions — see `AO_SESSION_PROMPTS.md`) was **dropped**; these features were
+  built directly on `main` in a normal Claude Code session. So we have **no AO-provenance
+  evidence** — no dashboard screenshots, no worktree-per-session history.
+- Orchestra's bar is explicitly *"use AO as your coding workspace."* Without AO provenance, a
+  submission can only compete on the **shipped artifact**, not on "we used AO." Judges who
+  weight AO usage will (correctly) mark us down; judges who weight "ship something real" will
+  find a strong entry.
+- We started building before Orchestra was announced, and the git history shows that.
 
 ## Submit / skip decision
 
-**Recommendation: submit.** Zero marginal cost, and the artifact is legitimately strong
-against Orchestra's stated criteria. Include this file (or a shorter version) in the
-submission notes so we're transparent about the timeline.
+**This is now the user's call, and it's a real trade-off, not a free win.** Submitting is
+still zero marginal cost and the artifact is strong — but be clear-eyed that the "built in AO"
+story is gone. Options:
 
-## What to build next only if we commit
+1. **Submit the artifact honestly** — lead with the shipped product and the `/scan/resume-ui`
+   stateful-continuity demo, and state plainly that AO wasn't the workspace. Competes on
+   substance; loses any AO-provenance points.
+2. **Skip Orchestra** — if the judging is heavily AO-usage-weighted, the honest artifact-only
+   entry may not place, and the effort is better spent on the Mireye submission.
+3. **Actually use AO for something** — even a small real change built in one AO session would
+   restore *some* provenance. `AO_SESSION_PROMPTS.md` still has three ready briefs; any one of
+   them could be rebuilt/extended in AO if you change your mind.
 
-If we do commit to Orchestra as a first-class target, one thing would materially strengthen
-the submission: **wire up a live "resume this scan" demo** — a UI that shows an interrupted
-scan, lets the audience click resume, and continues from the checkpoint. That's a 2–3 hour
-build (`findings/checkpoint.jsonl` is already the data source) and it makes the "save-games
-for agents" story literal instead of narrative.
+**Recommendation:** option 1 if entering at all — submit honestly, don't fake AO usage.

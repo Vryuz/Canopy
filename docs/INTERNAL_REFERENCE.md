@@ -4,7 +4,7 @@
 > actually did, why, what broke, and where we go next" record. Written to be picked up
 > cold after a break.
 
-Last updated: 2026-08-09 (session 3 — Canopy brand, generated artwork, plate redesign).
+Last updated: 2026-08-10 (session 5 — resume-scan UI, map tour, attestation share; §17). 59 tests.
 
 > **Session 2 additions** (see §11 at the bottom): the national scan, the community-benefit
 > "path to yes" layer, and the content-hashed attestation artifact. The §1–§10 material below
@@ -687,3 +687,37 @@ the hackathon announcement.
 
 Test count: **55** (unchanged; the batch tab is pure JS orchestration over the tested
 endpoints, so no new tests are meaningful).
+
+---
+
+## 17. Resume-scan UI, map tour, attestation share (2026-08-10, session 5)
+
+The three features originally scoped for an AO parallel-agent pass (see
+`AO_SESSION_PROMPTS.md`). AO was skipped; built directly on `main` instead.
+
+### 17.1 Resumable-state demo (`/scan/resume-ui`) — commit `795c0e0`
+Makes the scan's checkpoint/resume mechanism clickable. New endpoints in `api/server.py`:
+`GET /scan/state` (reads a demo checkpoint, returns completed/remaining/total), `POST
+/scan/resume-demo` (genuinely calls `run_scan(limit=completed+5, concurrency=2,
+checkpoint=demo-checkpoint.jsonl)` — real screening, appends the next 5), `POST
+/scan/reset-demo`, and the page route. The **+5 batch is server-fixed and hard-capped** so
+nothing the client sends can trigger a full paid scan, and it never touches the real
+`findings/checkpoint.jsonl`. Verified live: reset→0, resume→5 real sites, second resume→5
+*different* sites (genuine continuity, not re-screening). This is the project's most direct
+expression of the Orchestra "stateful continuity for stateless MCP" thesis.
+
+### 17.2 Guided story tour on `/map` — commit `4a9c0da`
+Four numbered narrator pins (Ashburn/Columbus/Phoenix/Council Bluffs, same coords as the DC
+demo examples) with a panel telling each market's story from the finding. Start button +
+Prev/Next + keys 1–4 + arrows + Esc. Focusing a stop dims the campus dots, colours the number
+by verdict, and pulses a ring (reduced-motion aware). Base map unchanged until you start.
+Pure client-side, no backend route.
+
+### 17.3 Shareable attestation links — commit `77d5d54`
+OG + Twitter Card meta on the attestation page (title = kind + verdict, description = verdict
+reasoning), so a pasted `/a/{id}` previews richly. Copy-link button (clipboard + confirmation)
+and a verdict-aware Share-on-X intent (tweet text server-computed, page URL assembled in the
+browser). `page_meta()` / `_tweet_text()` live in `attestation_page.py` and degrade gracefully
+when a verdict has no reasoning. 4 new tests.
+
+Test count: **59** (was 55).
