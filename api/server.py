@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -157,6 +158,86 @@ def scan_campuses() -> JSONResponse:
     if not path.exists():
         raise HTTPException(status_code=404, detail="no scan yet — run `python -m src.cli scan`")
     return JSONResponse(json.loads(path.read_text(encoding="utf-8")))
+
+
+# --- resume-scan demo ---------------------------------------------------------
+# The national scan checkpoints every completed site to a JSONL file, so a killed run
+# resumes with zero re-billed work. That's the most interesting thing the scan does and it's
+# normally invisible. These endpoints make it clickable: a *separate* demo checkpoint that
+# genuinely runs `run_scan(...)` five sites at a time, so you watch the same state handle
+# grow. The +5 cap is server-fixed and load-bearing — nothing the client sends can widen it,
+# so this can never kick off a full paid scan.
+
+DEMO_CHECKPOINT = FINDINGS_DIR / "demo-checkpoint.jsonl"
+RESUME_BATCH = 5
+
+
+def _scan_total() -> int:
+    from src.clients.osm import fetch_us_data_centers
+
+    return len(fetch_us_data_centers())
+
+
+@app.get("/scan/state")
+def scan_state() -> JSONResponse:
+    from src.scan import _load_checkpoint
+
+    done = _load_checkpoint(DEMO_CHECKPOINT)
+    total = _scan_total()
+    mtime = DEMO_CHECKPOINT.stat().st_mtime if DEMO_CHECKPOINT.exists() else None
+    return JSONResponse({
+        "total_target": total,
+        "completed": len(done),
+        "remaining": max(0, total - len(done)),
+        "batch": RESUME_BATCH,
+        "last_updated": (
+            datetime.fromtimestamp(mtime, timezone.utc).isoformat() if mtime else None
+        ),
+    })
+
+
+@app.post("/scan/resume-demo")
+async def scan_resume_demo() -> JSONResponse:
+    from src.scan import _load_checkpoint, run_scan
+
+    before = set(_load_checkpoint(DEMO_CHECKPOINT).keys())
+    completed = len(before)
+    total = _scan_total()
+    if completed >= total:
+        return JSONResponse({"added": [], "completed": completed, "remaining": 0, "done": True})
+
+    # Hard cap: resume at most RESUME_BATCH sites past whatever is already checkpointed.
+    limit = min(completed + RESUME_BATCH, total)
+    try:
+        await run_scan(limit=limit, concurrency=2, checkpoint=DEMO_CHECKPOINT, attestation_dir=None)
+    except MireyeError as exc:
+        raise HTTPException(status_code=502, detail=f"Mireye: {exc}") from exc
+
+    after = _load_checkpoint(DEMO_CHECKPOINT)
+    added = [after[k].model_dump() for k in after if k not in before]
+    return JSONResponse({
+        "added": added,
+        "completed": len(after),
+        "remaining": max(0, total - len(after)),
+        "done": len(after) >= total,
+    })
+
+
+@app.post("/scan/reset-demo")
+def scan_reset_demo() -> JSONResponse:
+    """Wipe the demo checkpoint so the resume demo can start over. Never touches the real
+    `findings/checkpoint.jsonl`."""
+    if DEMO_CHECKPOINT.exists():
+        DEMO_CHECKPOINT.unlink()
+    return JSONResponse({"ok": True})
+
+
+@app.get("/scan/resume-ui", response_class=HTMLResponse)
+def scan_resume_ui() -> HTMLResponse:
+    return HTMLResponse(
+        (WEB_DIR / "scan-resume.html").read_text(encoding="utf-8"),
+        headers={"Cache-Control": "no-store, must-revalidate"},
+    )
 
 
 @app.get("/map", response_class=HTMLResponse)

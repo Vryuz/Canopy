@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canopy — resumable scan state</title>
+<link rel="icon" href="/static/img/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css?v=17">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <a href="/" style="display:flex;align-items:center;gap:.5rem;color:inherit;text-decoration:none;border:0">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.6 7.9 7.2l3.8 4.9 3.5-3.6 6.3 7.2"/><path d="M2.5 20.6 8.7 15l3.7 3.4 4.2-3.7 4.9 5.2"/></svg>
+      <b>Canopy</b>
+    </a>
+  </div>
+  <div class="label"><a href="/map">National map →</a> · <a href="/">Verification demo →</a></div>
+</header>
+
+<div class="wrap map-wrap">
+  <div class="map-head">
+    <span class="label">Resumable execution state</span>
+    <h1 class="display">Kill the scan. Resume it. Nothing re-billed.</h1>
+    <p class="lede">The national scan screens ~1,800 sites against a paid API — so it
+    <b>checkpoints every completed site</b> to a JSONL file as it lands. Interrupt it at row
+    1,500 and it continues from 1,501; a different process, a different day, even a different
+    model can pick it up from that one state handle. This runs the same mechanism live, five
+    sites at a time, against a throwaway demo checkpoint. Watch the state grow.</p>
+  </div>
+
+  <div class="map-stats" id="stats"></div>
+
+  <div class="portfolio-progress" id="progress" hidden>
+    <div class="pmeter"><div class="pmeter-fill" id="pmeter-fill" style="width:0%"></div></div>
+    <div class="pcounts" id="pcounts"></div>
+  </div>
+
+  <div class="resume-controls">
+    <button type="button" id="resume-btn" class="cta">Resume 5 sites →</button>
+    <button type="button" id="reset-btn" class="resume-reset">Reset demo</button>
+    <span id="resume-status" class="dim mono"></span>
+  </div>
+
+  <div id="resume-out" class="out"></div>
+
+  <p class="foot-note dim">This demo runs against a throwaway <span class="mono">demo-checkpoint.jsonl</span>,
+  never the real scan's checkpoint. The resume batch is capped server-side at 5 sites, so it can't
+  trigger a full paid run. This is the "stateful continuity" primitive: the checkpoint is the state
+  handle; the execution is resumable even though each screen is a stateless call.</p>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+
+async function refreshState() {
+  const s = await (await fetch("/scan/state")).json();
+  const pct = s.total_target ? (s.completed / s.total_target * 100) : 0;
+  $("#stats").innerHTML = `
+    <div class="stat"><span class="stat-n">${s.completed.toLocaleString()}</span><span class="stat-l">Checkpointed</span></div>
+    <div class="stat"><span class="stat-n">${s.remaining.toLocaleString()}</span><span class="stat-l">Remaining</span></div>
+    <div class="stat"><span class="stat-n">${s.total_target.toLocaleString()}</span><span class="stat-l">Total sites</span></div>
+    <div class="stat"><span class="stat-n accent">${pct.toFixed(1)}%</span><span class="stat-l">Complete</span></div>`;
+  $("#progress").hidden = false;
+  $("#pmeter-fill").style.width = pct.toFixed(2) + "%";
+  $("#pcounts").innerHTML = s.last_updated
+    ? `<span class="dim">checkpoint last written ${esc(s.last_updated.slice(0, 19).replace("T", " "))} UTC</span>`
+    : `<span class="dim">no checkpoint yet — click Resume to start one</span>`;
+  return s;
+}
+
+function badge(kind) { return `<span class="badge ${esc(kind)}">${esc(kind)}</span>`; }
+
+async function resume() {
+  const btn = $("#resume-btn"), status = $("#resume-status");
+  btn.disabled = true; status.textContent = "screening 5 sites…";
+  try {
+    const r = await fetch("/scan/resume-demo", { method: "POST" });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+    const res = await r.json();
+    const s = await refreshState();
+    if (res.added.length === 0 && res.done) { status.textContent = "scan complete — nothing left to resume."; }
+    else { status.textContent = `appended ${res.added.length} rows to the checkpoint.`; }
+    // Prepend the newly-appended rows so the latest batch is on top.
+    const out = $("#resume-out");
+    if (!out.querySelector("table")) {
+      out.innerHTML = `<table class="portfolio-table"><thead><tr><th>Site</th><th>Verdict</th><th>Physical</th><th>Permitting</th><th>Stranded</th></tr></thead><tbody></tbody></table>`;
+    }
+    const tbody = out.querySelector("tbody");
+    for (const row of res.added) {
+      const tr = document.createElement("tr");
+      tr.className = "prow status-" + esc(row.verdict);
+      const perm = row.permitting == null ? "—" : row.permitting.toFixed(2);
+      tr.innerHTML = `<td class="mono">${esc((row.name || "").slice(0, 40))}</td>
+        <td>${badge(row.verdict)}</td>
+        <td class="mono">${row.physical_mean.toFixed(2)}</td>
+        <td class="mono">${perm}</td>
+        <td class="mono"><b>${row.stranded_viability.toFixed(2)}</b></td>`;
+      tbody.insertBefore(tr, tbody.firstChild);
+    }
+  } catch (err) {
+    status.textContent = "";
+    $("#resume-out").insertAdjacentHTML("afterbegin", `<div class="error">${esc(err.message)}</div>`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function reset() {
+  await fetch("/scan/reset-demo", { method: "POST" });
+  $("#resume-out").innerHTML = "";
+  $("#resume-status").textContent = "demo reset.";
+  await refreshState();
+}
+
+$("#resume-btn").onclick = resume;
+$("#reset-btn").onclick = reset;
+refreshState();
+</script>
+</body>
+</html>

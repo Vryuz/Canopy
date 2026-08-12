@@ -487,6 +487,17 @@ a:hover { border-bottom-color: var(--ink); }
 .pv-dc { background: var(--tint-dc); }
 .error-inline { color: var(--accent); font-family: var(--mono); font-size: 0.75rem; }
 
+/* --- resume-scan demo page --- */
+.resume-controls { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1.3rem 0 0.4rem; }
+.resume-reset {
+  background: none; border: 1px solid var(--line); color: var(--ink-2);
+  font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.04em;
+  padding: 0.5rem 0.9rem; border-radius: 5px; cursor: pointer;
+  transition: border-color var(--dur) var(--ease);
+}
+.resume-reset:hover { border-color: var(--ink-3); }
+#resume-btn[disabled] { opacity: 0.55; cursor: progress; }
+
 /* Share link shown under a result in the demo. */
 .share { margin-top: 1.1rem; font-family: var(--mono); font-size: 0.76rem; }
 .share a { color: var(--ink); border-bottom: 1px solid var(--ink-4); }
