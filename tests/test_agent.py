@@ -1,4 +1,4 @@
-"""Tests for the verification loop and the two verticals."""
+"""Tests for the verification loop and the three verticals."""
 
 from __future__ import annotations
 

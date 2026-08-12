@@ -36,8 +36,10 @@ def render_page(att: Attestation, att_id: str) -> str:
     parts: list[str] = []
     parts.append(f"""<header class="topbar">
   <div class="brand">
-    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.6 7.9 7.2l3.8 4.9 3.5-3.6 6.3 7.2"/><path d="M2.5 20.6 8.7 15l3.7 3.4 4.2-3.7 4.9 5.2"/></svg>
-    <b>Canopy</b>
+    <a href="/" style="display:flex;align-items:center;gap:.5rem;color:inherit;text-decoration:none;border:0">
+      <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 14.6 7.9 7.2l3.8 4.9 3.5-3.6 6.3 7.2"/><path d="M2.5 20.6 8.7 15l3.7 3.4 4.2-3.7 4.9 5.2"/></svg>
+      <b>Canopy</b>
+    </a>
   </div>
   <div class="label">Attestation · {escape(att_id)}</div>
 </header>

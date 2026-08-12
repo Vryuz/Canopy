@@ -113,9 +113,9 @@ class MireyeClient:
         name = path.strip("/").replace("/", "_")
         lat, lng = payload.get("lat"), payload.get("lng")
         preset = payload.get("preset")
-        # Two verticals now both fetch by explicit field list (no preset), so the fixture
-        # is keyed by coordinate first — otherwise a flood fetch and a DC fetch collide on
-        # the same generic filename.
+        # The verticals fetch by explicit field list (no preset), so the fixture is keyed
+        # by coordinate first — otherwise a flood fetch and a DC fetch collide on the same
+        # generic filename.
         candidates: list[str] = []
         if lat is not None and lng is not None:
             candidates.append(f"{name}_{lat:.2f}_{lng:.2f}.json")

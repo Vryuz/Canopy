@@ -16,13 +16,17 @@ Last updated: 2026-08-09 (session 3 — Canopy brand, generated artwork, plate r
 
 We built an **agent that verifies claims about US locations against cited federal ground
 truth, and reports where the sources disagree.** It fuses Mireye (per-coordinate physical
-facts, every value carrying its own source + timestamp + confidence) with two external
-sources Mireye doesn't have — OpenFEMA (flood disaster + claims history) and Moratorium
-Nation (local data-center bans). Two verticals ride one engine: **flood-disclosure
-verification** (buyer: mortgage lenders / title / insurers) and **data-center site
-screening** (buyer: developer site-selection teams). It is the Mireye challenge entry, and
-it doubles as a working prototype of Canopy's Verification Engine. Live against the real
-API, 33 tests passing.
+facts, every value carrying its own source + timestamp + confidence) with independent
+sources Mireye doesn't have — OpenFEMA (flood disaster + claims history), Moratorium Nation
+(local data-center bans), and OSM protected areas. Three verticals ride one domain-free
+engine: **flood-disclosure verification** (buyer: mortgage lenders / title / insurers),
+**data-center site screening** (buyer: developer site-selection teams), and **carbon-credit
+verification** (buyer: credit buyers / verification bodies). On top of the verticals sit a
+national scan (1,154 US data-center campuses ranked by stranded viability, with a `/map`
+view), shareable self-verifying attestations (`/a/{id}`), and a portfolio batch tab. It is
+the Mireye challenge entry (also submitted to Untrivial's Orchestra hackathon), and it
+doubles as a working prototype of Canopy's Verification Engine. Live against the real API,
+**55 tests passing**.
 
 ---
 
@@ -56,7 +60,7 @@ From prior research the user had three:
 
 ### 1.3 What we chose and why
 We did **not** pick one pitch. We extracted the **common primitive** — *verification* — and
-built it once, then expressed it as two verticals:
+built it once, then expressed it as two verticals (a third, carbon, was added later — §13):
 - **Flood verification** (pitch 2, cleanest public data via OpenFEMA)
 - **Data-center screening** (pitch 1 + 3, but reframed: not "is this site physically good?"
   — Mireye already answers that — but "is this site physically good *and will it actually
@@ -153,6 +157,11 @@ underwriting, or the India DC screen) means writing one file that satisfies the 
 protocol. Nothing in `agent.py` changes.
 
 ### 4.1 File-by-file (current state, ~2000 LOC total)
+
+> **This table is the original-build snapshot (sessions 1–2).** It has grown since — a
+> carbon vertical, the national scan/map, attestations, and a portfolio tab — so counts
+> below are historical. See §11–§16 for what each later session added; current test count is
+> **55**.
 
 | File | LOC | What it does |
 |---|---|---|

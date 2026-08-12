@@ -429,9 +429,9 @@ a:hover { border-bottom-color: var(--ink); }
 .map-tip .badge { font-size: 0.6rem; padding: 0.1rem 0.4rem; margin-right: 0.3rem; }
 
 /* --- portfolio (batch) verification ---
-   The batch surface must stay clearly *itself* — a working dashboard, not another
-   result card. Uses a proper table so the eye can scan verdicts across rows, and a
-   live progress meter so the parallelism is legible rather than magical. */
+   The batch surface is the agent working a whole book at once, not a static report.
+   A proper table so the eye can scan verdicts across rows, and a live progress meter
+   so the parallel screening is legible rather than magical. */
 #portfolio-form textarea {
   font-family: var(--mono); font-size: 0.8rem; line-height: 1.55;
   resize: vertical; min-height: 8rem;
