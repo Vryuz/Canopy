@@ -4,12 +4,16 @@ If you're picking this up months later, read in this order.
 
 | # | Doc | What it is | Read it when |
 |---|---|---|---|
-| 1 | [`../README.md`](../README.md) | The **outward pitch** — what the agent does, the three verticals, how to run it, the honest boundaries. | You want the 5-minute "what is this" or you're preparing a submission. |
-| 2 | [`INTERNAL_REFERENCE.md`](INTERNAL_REFERENCE.md) | The **build log** — problem, architecture, file-by-file, every real bug the live API exposed (fix + test each), and each session's additions (§11–§16). | You're getting back into the *code*, debugging, or extending a vertical. |
-| 3 | [`SCAN_RUNLOG.md`](SCAN_RUNLOG.md) | The **national-scan results** — 1,814 buildings → 1,154 campuses, 500 disputed, plus method and honest caveats. | You want the headline finding or the numbers behind `/map`. |
-| 4 | [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) | The **live-demo script** — four beats (~2 min), the cache warm-up, per-beat talk track, contingency table. | You're about to present. |
-| 5 | [`ORCHESTRA_SUBMISSION.md`](ORCHESTRA_SUBMISSION.md) | The **AO Orchestra fit brief** — why this dual-submits, and what's honest about it. | You're deciding whether/how to enter Orchestra. |
-| 6 | [`AO_SESSION_PROMPTS.md`](AO_SESSION_PROMPTS.md) | **Paste-ready briefs** for three parallel AO sessions (resume-scan UI, map tour, attestation share). | You're building the AO-evidence feature pass. |
+| 1 | [`MIREYE_SUBMISSION.md`](MIREYE_SUBMISSION.md) | The **submission brief** — the one-page answer to Mireye's rubric (agent-first, four judging lines, live proof links). | You're a judge, or preparing the entry. Start here. |
+| 2 | [`../README.md`](../README.md) | The **outward pitch** — what the agent does, the three verticals, how to run it, the honest boundaries. | You want the 5-minute "what is this". |
+| 3 | [`DEMO_RUNBOOK.md`](DEMO_RUNBOOK.md) | The **live-demo script** — four beats (~2 min), the cache warm-up, per-beat talk track, contingency table. | You're about to present. |
+| 4 | [`INTERNAL_REFERENCE.md`](INTERNAL_REFERENCE.md) | The **build log** — problem, architecture, file-by-file, every real bug the live API exposed (fix + test each), and each session's additions (§11–§17). | You're getting back into the *code*, debugging, or extending a vertical. |
+| 5 | [`SCAN_RUNLOG.md`](SCAN_RUNLOG.md) | The **national-scan results** — 1,814 buildings → 1,154 campuses, 500 disputed, plus method and honest caveats. | You want the headline finding or the numbers behind `/map`. |
+| 6 | [`MIREYE_FIELD_REQUEST.md`](MIREYE_FIELD_REQUEST.md) | A **drafted field request** to Mireye (`nearest_enacted_moratorium`) — the gap our DC vertical had to fill externally. | You're engaging Mireye on their product. |
+
+**Parked (Orchestra dropped — we're full-on Mireye):** `ORCHESTRA_SUBMISSION.md` and
+`AO_SESSION_PROMPTS.md` capture the abandoned Agent-Orchestrator hackathon thread. Kept for
+the record; not part of the Mireye submission.
 
 **Local-only strategy docs (deliberately not committed):** `DECISION_LOG.md` (every decision
 + why, including rejects) and `COMPANY_THESIS.md` (the 10-year view). These hold candid
