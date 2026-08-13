@@ -1,0 +1,28 @@
+# Render config-as-code. Connect this repo at render.com → New → Blueprint, or
+# New → Web Service pointed at github.com/Vryuz/Canopy — Render reads this file either way.
+#
+# Persistent-disk note: the free instance type has no attached disk, so
+# data/attestations/ and findings/demo-checkpoint.jsonl reset on a cold start after
+# the service sleeps (free tier sleeps after 15 min idle). findings/campuses.json is
+# committed to the repo, so /map always has data regardless. Fine for a demo/judging
+# window; upgrade to a paid instance type (persistent disk, no sleep) if that resume
+# state needs to survive multiple sessions.
+
+services:
+  - type: web
+    name: canopy
+    runtime: python
+    plan: free
+    # Mirrors the local dev setup in README.md exactly (`pip install -e .`, `python -m
+    # uvicorn ...`) rather than a bare `uvicorn` invocation — `python -m` guarantees the repo
+    # root is on sys.path, which is how api/server.py resolves `src.*` imports locally too.
+    buildCommand: pip install --upgrade pip && pip install -e .
+    startCommand: python -m uvicorn api.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: MIREYE_API_TOKEN
+        sync: false   # set manually in the Render dashboard — never committed
+      - key: MIREYE_OFFLINE
+        value: "0"
+      - key: PYTHON_VERSION
+        value: "3.11.9"
