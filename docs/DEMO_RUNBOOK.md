@@ -1,127 +1,200 @@
-# Canopy — live demo runbook
+# Canopy — end-to-end demo script
 
-The submission demo, scripted. Follow this exactly and it takes ~2 minutes to run through the
-full arc: **macro finding → live verification → verifiable trust → batch product**.
+Full narration, start to finish, against the live deployment:
+**https://canopy-rkm5.onrender.com**
 
-The demo is designed so nothing hits a slow network on stage — the two-command warm-up below
-makes every canned coordinate serve from disk.
+Written to be read (or paraphrased) as a presenter would explain the product to someone
+seeing it cold — not just a click list. Total run time ~4–5 minutes at a natural pace,
+including the real network waits.
+
+**One thing to know going in:** every number and every verdict below is what the agent
+computed live against real federal data — no scripted responses, no canned answers. When a
+step says "wait ~15 seconds," that's an honest live call to Mireye, OpenFEMA, or OpenStreetMap,
+not a loading animation. Say so on camera; it's a feature of the product, not a delay to hide.
 
 ---
 
-## Setup (once, before you present)
+## 0 · Before you record
 
-```bash
-python scripts/warm_demo.py
+Open the URL once yourself, about a minute before you start. Render's free tier sleeps after
+15 minutes idle, so this wakes it and means your recording starts from a warm server, not a
+30-second cold spinner.
+
 ```
-
-That pre-runs every canned example in the UI against Mireye + OpenFEMA + OSM Overpass and
-stashes the responses in `.cache/`. Takes ~2 minutes and burns ~200 credits, once.
-
-Then start the server in **cache-only replay** mode:
-
-```bash
-CANOPY_CACHE_ONLY=1 python -m uvicorn api.server:app --port 8000
+https://canopy-rkm5.onrender.com/healthz
 ```
-
-In this mode any missed cache raises loudly — so you'll find out **before** the audience
-does. Open <http://localhost:8000> and confirm the hero renders. You're ready.
-
-**If you want to run some coordinates live** (e.g. an audience-suggested address), start the
-server without `CANOPY_CACHE_ONLY`. The canned coordinates still serve from the warm cache;
-new ones hit the network with the usual latencies (5–15s Mireye; 20s max Overpass).
+Should return `{"ok":true,"mireye_mode":"live"}` almost instantly. If it takes ~30s, that's the
+cold start — wait it out before you hit record.
 
 ---
 
-## The demo — four beats, ~2 min
+## 1 · Open on the hook (10–15s)
 
-### Beat 1 · Macro finding (~30s)
+Land on `https://canopy-rkm5.onrender.com/`.
 
-Open **`/map`**. The stranded-half map is on screen.
-
-**Talk track:**
-> "We ran Canopy against every OSM-mapped US data center — 1,824 buildings, 1,154 campuses.
-> The red dots are physically excellent sites now inside an active local moratorium's blast
-> radius. **500 of them, 43%.** That's Google, AWS, QTS, Flexential, Digital Realty — not
-> fringe. Hover any dot for the site, verdict, coordinates."
-
-*(hover a Virginia dot → tooltip shows Google Lockbourne / DISPUTED / stranded 0.95)*
-
-> "Two commercial sources fused for this map: Mireye for the physical ground truth,
-> Moratorium Nation for the enacted local bans. Neither alone catches what the pair does."
-
-### Beat 2 · Live verification (~40s)
-
-Click **"Verification demo →"** in the top-right, then the **Carbon project** tab.
-The example is prefilled: *avoided deforestation, protecting intact forest* at 47.8, -123.5.
-
-Click **Verify claim**. (Serves from cache; ~200ms.)
-
-**Talk track:**
-> "A carbon credit is a claim. This one says: I'm protecting intact forest, pay me for it.
-> Canopy checks the parcel against Mireye's vegetation ground truth and OSM's protected-area
-> status. Watch the verdict."
-
-*(page renders DISPUTED, critical, protected_areas)*
-
-> "That parcel sits inside **Olympic National Park and a designated Wilderness**. Land under
-> legal protection would have been conserved regardless — you cannot be paid to prevent a
-> loss the law already prevents. Six sources fused; the discrepancy is unmissable."
-
-### Beat 3 · Verifiable trust (~30s)
-
-Click the **Attestation /a/…** link under the result. New tab opens.
-
-**Talk track:**
-> "Every verdict is a shareable, self-verifying attestation. The URL is the first 12 hex of
-> the content hash, so the address itself is a commitment. See ✓ Intact — the browser just
-> recomputed the sha256 and matched it to the issued hash."
-
-*(open the JSON link, edit one character in `reasoning`, save, refresh)*
-
-> "Tamper with anything…"
-
-*(page now shows ✗ TAMPERED, red)*
-
-> "…and any counterparty sees it. This is the product: not our verdict, but a re-checkable
-> record they can trust without trusting us."
-
-### Beat 4 · The batch product (~20s)
-
-Back to the demo. Click the **Portfolio** tab. Click **Load Ashburn hedge-fund sample**,
-then **Verify portfolio**.
-
-**Talk track:**
-> "That was one address. This is what a lender's underwriting desk actually does — screen
-> the whole book. Four workers in parallel; results stream as they land. Every row lands
-> with its own attestation link they can forward to counsel."
-
-*(watch the meter climb; ten rows land in ~8 seconds from the warm cache)*
-
-> "That's Canopy. Three domains — flood, carbon, data centers — one verification engine,
-> one shareable trust surface."
+> "Mireye gives you cited facts about any US location — terrain, hazards, utilities, land
+> cover. This is Canopy, an agent built on top of it that answers a harder question: someone
+> *told* you something about a place — a seller, a developer, a carbon registry. Is it true?
+> Canopy checks the claim against Mireye plus an independent second source, and tells you
+> where they disagree."
 
 ---
 
-## Contingencies (what if X breaks live)
+## 2 · Why this is an agent, not a website (15–20s)
 
-| Symptom | Fix |
+Stay on the homepage; point at the three tabs (Flood, Carbon, Data center) and the Portfolio
+tab.
+
+> "This isn't a lookup tool. It reasons — it diffs a claim against multiple sources and weighs
+> the contradictions by severity. It decides — every check ends in VERIFIED, DISPUTED, FLAGGED,
+> or INCONCLUSIVE, with a confidence score that's capped by how much evidence it actually got
+> back, not just asserted. And it acts — it mints a cited, tamper-evident record of its own
+> decision. Reason, decide, act. That's the whole rubric this had to satisfy, and you're about
+> to watch all three happen live."
+
+---
+
+## 3 · The macro finding — `/map` (~40s)
+
+Navigate to `/map`.
+
+> "Before we run a single check, here's what happens when you point this agent at an entire
+> industry. Mireye's own blog talks about screening thousands of meat-processing plants in an
+> afternoon — so we did the same thing to data centers. Every OpenStreetMap-tagged data center
+> in the US: 1,824 buildings, rolled up to 1,154 real campuses."
+
+Let the stats settle — you'll see live: **500 disputed (43%) · 541 verified · 113 flagged.**
+
+> "Red is a physically excellent site now sitting inside an active local permitting
+> moratorium — the community said no, even though the land itself is perfect. Forty-three
+> percent. And this isn't fringe operators — the reddest dots are Google, Amazon, QTS,
+> Flexential."
+
+Click **"▶ Guided tour"**. It opens on Ashburn, Virginia.
+
+> "Ashburn — the data-center capital of the world, and Mireye's own example coordinate.
+> Flawless on every engineering axis Mireye measures, and disputed on the two things that never
+> show up on a site plan: an air-quality nonattainment zone, and five active county moratoria
+> within 80 kilometers."
+
+Press `2` then `3` on the keyboard to step through Columbus (worst permitting score in the
+sample — the market Mireye's own blog recommends *fleeing to*) and Phoenix (clean on
+moratoria, but the weakest externalities score — water and heat risk instead of politics).
+Press `Escape` to close the tour.
+
+---
+
+## 4 · The mechanism — one live verification (~45–60s)
+
+Click **"Verification demo →"** top right. You land back on `/`, Flood tab active.
+
+> "That map is the *what*. Now the *how* — watching the agent actually reason, live, against
+> one address."
+
+Switch to the **Carbon project** tab. The example is prefilled: `47.8, -123.5`, claim
+*"avoided deforestation, protecting intact forest."*
+
+> "A carbon credit is a claim: I'm protecting this forest, pay me for it. That's exactly the
+> shape of claim this engine is built to check."
+
+Click **Verify claim**. It's a real call — say so, and let it run.
+
+> "This is live — it's fetching vegetation ground truth from Mireye and cross-referencing
+> protected-area status from OpenStreetMap. Give it about fifteen seconds."
+
+When it resolves: **DISPUTED**, critical severity, citing that the parcel sits inside Olympic
+National Park and a designated Wilderness area.
+
+> "The claim fails — not because the forest isn't there, but because it's already protected by
+> law. You can't be paid to prevent a loss that's already prevented. Two independent sources —
+> Mireye's vegetation data and OpenStreetMap's protected-area boundaries — combined to catch
+> something neither alone would have."
+
+*(Optional, if you want to show breadth rather than just depth: switch to the Flood tab, click
+the "Galveston coastal" example, run it, and let a second DISPUTED verdict land — Zone AE,
+mandatory flood insurance, cited against FEMA. Two verticals, thirty extra seconds, reinforces
+that this generalizes rather than being a one-trick check.)*
+
+---
+
+## 5 · The trust layer — attestations (~30–40s)
+
+On the result you just produced, scroll to the **Attestation `/a/…`** link and click it. Opens
+in the same tab or a new one.
+
+> "Every verdict this agent reaches gets minted as its own page — a permanent, shareable
+> record. And it doesn't ask you to trust us on that."
+
+Point at the integrity panel — it should read **✓ Intact — recomputed hash matches the issued
+hash.**
+
+> "The page just recomputed the sha-256 hash of this record, in your browser, right now, and
+> compared it to the one that was issued. If a single character of this verdict had been
+> altered, that check fails and says so — visibly, in red. Nobody has to take our word for it."
+
+Point at the **Copy link** and **Share on X** buttons.
+
+> "And it's portable — this is a URL a lender's underwriter, a carbon verifier, or a county
+> reviewer can open and re-check independently."
+
+---
+
+## 6 · Scale — the Portfolio tab (~30s)
+
+Back on `/`, click the **Portfolio** tab. Click **"Load Ashburn hedge-fund sample,"** then
+**Verify portfolio**.
+
+> "One address is a lookup. This is the actual use case — an underwriting desk with a stack of
+> addresses to clear this week. Same engine, run in parallel across a whole book."
+
+Let rows stream in — expect this to take longer than a demo video usually would, since it's
+live network calls per row, not a canned animation. Narrate over the wait if needed.
+
+> "Every row that lands gets its own verdict and its own attestation link, same as the single
+> check we just watched. This is the agent doing the underwriter's afternoon in a few minutes."
+
+---
+
+## 7 · Optional close — the resumable execution (~25s)
+
+If you have time, navigate to `/scan/resume-ui` (linked from the `/map` nav).
+
+> "One more thing worth showing, because it's the part that's easy to miss: that 1,824-site
+> national scan is credit-metered and takes a while, so it checkpoints every completed site to
+> disk as it goes. Kill it halfway through, and it resumes exactly where it stopped — nothing
+> re-billed, nothing re-screened."
+
+Click **"Resume 5 sites →"**. Watch it genuinely screen five more real sites and append them.
+
+> "That's not a UI trick — it just called the same scan function again, and it picked up
+> exactly where the checkpoint left off. The state lives in the file, not in any one running
+> process."
+
+---
+
+## 8 · Close (10–15s)
+
+> "Three verticals, one engine, real federal data, a verdict you don't have to trust blindly.
+> Flood disclosures for lenders, data-center siting for developers, carbon credits for
+> verification bodies — all built on the same primitive: check the claim, cite the evidence,
+> attest to the result. That's Canopy."
+
+---
+
+## Contingencies
+
+| Symptom | What to do |
 |---|---|
-| **A canned query hangs** | `CANOPY_CACHE_ONLY` wasn't set, or the cache wasn't warmed. Stop, run the two setup commands, restart. |
-| **`/map` shows "No scan data yet"** | `findings/campuses.json` missing. Run `python -m src.cli scan --limit 20` for a fast partial (or the full scan takes ~20 min). |
-| **Attestation link 404s** | `data/attestations/` was cleared. Just run the verification again — the new attestation lands and its link works. |
-| **Overpass 502/timeout in the carbon tab** | Overpass mirrors are flaky; a warm cache dodges it. If live, the carbon page will show a declared data gap on `protected_areas` and still return a verdict — that's designed behaviour, not a crash. |
-| **A commercial source (Mireye) errors** | Server returns a `502` with the Mireye error. The tab shows a red error block. Rerun after 10s or switch to a different coordinate. |
+| A step is taking longer than the estimate above | Normal — these are real live calls. Keep narrating; don't panic-refresh. |
+| `/map` shows "No scan data yet" | The committed `findings/campuses.json` should always ship with the repo; if this happens the deploy is stale — redeploy from Render's dashboard. |
+| An attestation link 404s | Render's free tier has no persistent disk — if the service slept and cold-started between minting the link and clicking it, the record is gone. Just re-run the verify; a fresh link will work within the same session. |
+| A live call errors (502) | Upstream (Mireye/OpenFEMA/Overpass) hiccup. Wait ~10s, retry the same example. |
+| The whole site feels sluggish on first load | Cold start — see step 0. Always warm it before recording. |
 
----
+## What you don't need to explain unless asked
 
-## What you don't need to say (unless asked)
-
-- **Costs.** A full site screen is ~27 credits (~2.5¢). A verify is ~10 credits. The full
-  national scan was ~49k credits, one-shot.
-- **Freshness.** The cache TTL is 30 days by default; moratoria shift quarterly, which is
-  the natural re-screen cadence.
-- **The engine.** `agent.py` holds zero domain knowledge; a vertical supplies (which fields
-  to pull, how to read a claim, what counts as a contradiction). Adding a vertical is one file.
-- **The Wave-3 thesis.** Data centers as verifiable good neighbors, not just consumers. The
-  path-to-yes lever on every DC verdict (grid flexibility / district heat / water offset) is
-  the community-benefit reframe.
+- **Cost**: a single verify is roughly 10–30 Mireye credits; the full national scan was a
+  one-time ~49k-credit run, already banked in `findings/`.
+- **Why Render, why it sleeps**: free-tier tradeoff, documented in `render.yaml`'s comments.
+- **The 10-year thesis**: this demo is the Mireye-challenge submission, not the pitch for the
+  company beyond it — that lives in the local-only `COMPANY_THESIS.md` if it comes up in Q&A.
